@@ -435,7 +435,7 @@
                     <td class="titik-dua-col">:</td>
                     <td class="isi-col">
                         <ol class="ordered-list">
-                            @foreach(explode("\n", $drh->untuk ?: "Pengajuan Tanda Kehormatan Satyalancana Karya Satya 20 Tahun\nDilaksanakan dengan sebaik-baik dan penuh tanggung jawab.") as $item)
+                            @foreach(explode("\n", $drh->untuk ?: "Pengajuan Tanda Kehormatan Satyalancana Karya Satya " . ($drh->tanda_kehormatan ? '20' : '10') . " Tahun\nDilaksanakan dengan sebaik-baik dan penuh tanggung jawab.") as $item)
                                 @if(trim($item))
                                     <li>{{ trim($item) }}</li>
                                 @endif
