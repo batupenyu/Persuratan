@@ -268,7 +268,21 @@
             <tr>
                 <td class="center-text" style="width: 5%;">1.</td>
                 <td style="width: 45%;">Nama Lengkap</td>
-                <td style="width: 50%; font-weight: bold;">{{ $asn->nama ?? '-' }}</td>
+                <td style="width: 50%; font-weight: bold;">
+                    {{-- {{ $asn->nama ?? '-' }} --}}
+                    @php
+                        $nama = $asn->nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
+                        $nama = str_replace('PLT.', 'Plt.', $nama);
+                        $nama = str_replace('plt.', 'Plt.', $nama);
+                        $nama = strtoupper($nama);
+                        $nama = str_ireplace('S.PD', 'S.Pd', $nama);
+                        $nama = str_ireplace('M.M.', 'M.M.', $nama);
+                        $nama = str_ireplace('S.SOS', 'S.Sos', $nama);
+                        $nama = str_ireplace('S.AG', 'S.Ag', $nama);
+                        $nama = str_ireplace('M.PD', 'M.Pd', $nama);
+                    @endphp
+                    {{ $nama }}
+                </td>
             </tr>
             <tr>
                 <td class="center-text">2.</td>
@@ -331,7 +345,8 @@
     <div class="signature-container">
         <table class="signature-table">
             <tr>
-                <td><br>Jabatan Atasan Langsung,
+                <td>Plt. KEPALA DINAS PENDIDIKAN<br>
+                    PROVINSI KEP. BANGKA BELITUNG
                 <td>
                     Ditetapkan di Pangkalpinang<br>
                     Tanggal : {{ $fmt($drh->tgl_ditetapkan, '%d %B %Y') }}
@@ -350,13 +365,37 @@
                     <br>
                     <br>
                     <br>
-                    {{ $drh->atasan_nama ?: 'SAIPUL BAKHRI, S.Pd., M.M.' }}
+                    {{-- {{ $drh->atasan_nama ?: 'SAIPUL BAKHRI, S.Pd., M.M.' }} --}}
+                    @php
+                        $nama = $drh->atasan_nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
+                        $nama = str_replace('PLT.', 'Plt.', $nama);
+                        $nama = str_replace('plt.', 'Plt.', $nama);
+                        $nama = strtoupper($nama);
+                        $nama = str_ireplace('S.PD', 'S.Pd', $nama);
+                        $nama = str_ireplace('M.M.', 'M.M.', $nama);
+                        $nama = str_ireplace('S.SOS', 'S.Sos', $nama);
+                        $nama = str_ireplace('S.AG', 'S.Ag', $nama);
+                    @endphp
+                    {{ $nama }}
                 </td>
                 <td style="font-weight: bold; text-decoration: underline;">
                     <br>
                     <br>
                     <br>
-                    {{ $asn->nama ?? '' }}</td>
+                    {{-- {{ $asn->nama ?? '' }} --}}
+                    @php
+                        $nama = $asn->nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
+                        $nama = str_replace('PLT.', 'Plt.', $nama);
+                        $nama = str_replace('plt.', 'Plt.', $nama);
+                        $nama = strtoupper($nama);
+                        $nama = str_ireplace('S.PD', 'S.Pd', $nama);
+                        $nama = str_ireplace('M.M.', 'M.M.', $nama);
+                        $nama = str_ireplace('S.SOS', 'S.Sos', $nama);
+                        $nama = str_ireplace('S.AG', 'S.Ag', $nama);
+                        $nama = str_ireplace('M.PD', 'M.Pd', $nama);
+                    @endphp
+                    {{ $nama }}
+                </td>
             </tr>
             <tr>
                 <td>
@@ -450,23 +489,23 @@
                     Dikeluarkan di : Pangkalpinang<br>
                     Pada Tanggal : {{ $fmt($drh->tgl_ditetapkan, '%d %B %Y') }}
                 </div>
-<div class="ttd-jabatan">
-    Plt. KEPALA DINAS PENDIDIKAN<br>
-    PROVINSI KEP. BANGKA BELITUNG
-</div>
-<div class="ttd-spasi"></div>
-<div class="ttd-nama">
-    @php
-        $nama = $drh->atasan_nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
-        $nama = str_replace('PLT.', 'Plt.', $nama);
-        $nama = str_replace('plt.', 'Plt.', $nama);
-        $nama = strtoupper($nama);
-        $nama = str_ireplace('S.PD', 'S.Pd', $nama);
-        $nama = str_ireplace('M.M.', 'M.M.', $nama);
-        $nama = str_ireplace('S.SOS', 'S.Sos', $nama);
-    @endphp
-    {{ $nama }}
-</div>
+                <div class="ttd-jabatan">
+                    Plt. KEPALA DINAS PENDIDIKAN<br>
+                    PROVINSI KEP. BANGKA BELITUNG
+                </div>
+                <div class="ttd-spasi"></div>
+                <div class="ttd-nama">
+                    @php
+                        $nama = $drh->atasan_nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
+                        $nama = str_replace('PLT.', 'Plt.', $nama);
+                        $nama = str_replace('plt.', 'Plt.', $nama);
+                        $nama = strtoupper($nama);
+                        $nama = str_ireplace('S.PD', 'S.Pd', $nama);
+                        $nama = str_ireplace('M.M.', 'M.M.', $nama);
+                        $nama = str_ireplace('S.SOS', 'S.Sos', $nama);
+                    @endphp
+                    {{ $nama }}
+                </div>
                 <div class="ttd-nip">NIP. {{ $drh->atasan_nip ?: '19740430 200501 1 013' }}</div>
             </div>
         </div>
