@@ -217,7 +217,7 @@
         }
         .ttd-jabatan {
             font-weight: bold;
-            text-transform: uppercase;
+            /* text-transform: uppercase; */
             line-height: 1.3;
         }
         .ttd-spasi {
@@ -293,17 +293,17 @@
             <tr>
                 <td class="center-text">6.</td>
                 <td>Pangkat, Gol. Ruang Terakhir (TMT)</td>
-                <td>{{ $drh->pangkat ?: '-' }} ({{ $fmt($drh->tmt_pangkat, '%d %B %Y') }})</td>
+                <td>{{ $drh->pangkat ?: '-' }} ({{ $fmt($drh->tmt_pangkat, '%d-%m-%Y') }})</td>
             </tr>
             <tr>
                 <td class="center-text">7.</td>
-                <td>No. SK CPNS (TMT)</td>
-                <td>{{ $drh->no_sk_cpns ?: '-' }} ({{ $fmt($drh->tmt_cpns, '%d %B %Y') }})</td>
+                <td>No. SK CPNS (Tanggal SK / TMT)</td>
+                <td>No. {{ $drh->no_sk_cpns ?: '-' }} ( {{ $fmt($drh->tgl_sk_cpns, '%d-%m-%Y') }} / {{ $fmt($drh->tmt_cpns, '%d-%m-%Y') }})</td>
             </tr>
             <tr>
                 <td class="center-text">8.</td>
                 <td>Jabatan Terakhir (TMT)</td>
-                <td>{{ $drh->jabatan_terakhir ?: '-' }} ({{ $fmt($drh->tmt_jabatan, '%d %B %Y') }})</td>
+                <td>{{ $drh->jabatan_terakhir ?: '-' }} ({{ $fmt($drh->tmt_jabatan, '%d-%m-%Y') }})</td>
             </tr>
             <tr>
                 <td class="center-text">9.</td>
@@ -313,17 +313,17 @@
             <tr>
                 <td class="center-text">10.</td>
                 <td>Tanda Kehormatan yang sudah dimiliki (Nomor dan tanggal Keppres)</td>
-                <td>{{ $drh->tanda_kehormatan ? ('sudah mendapatkan SLKS yang ke ' . $drh->tanda_kehormatan . ' (' . $fmt($drh->tgl_kepres, '%d %B %Y') . ' dan ' . ($drh->no_kepres ?: '-') . ')') : '-' }}</td>
+                <td>{{ $drh->tanda_kehormatan ? ('Sudah mendapatkan SLKS yang ke ' . $drh->tanda_kehormatan . ' ( Nomor :' . ($drh->no_kepres ?: '-') . ' tanggal ' . $fmt($drh->tgl_kepres, '%d-%m-%Y') . ')') : '-' }}</td>
             </tr>
             <tr>
                 <td class="center-text">11.</td>
                 <td>Hukuman Disiplin (Jenis, Nomor dan TMT dijatuhi hukuman s.d selesai)</td>
-                <td style="font-style: italic;">{{ $drh->hukuman_disiplin ?: 'tidak pernah dijatuhi hukuman disiplin tingkat sedang/berat' }}</td>
+                <td style="font-style: italic;">{{ $drh->hukuman_disiplin ?: '"tidak pernah dijatuhi hukuman disiplin tingkat sedang/berat"' }}</td>
             </tr>
             <tr>
                 <td class="center-text">12.</td>
                 <td>CLTN (Nomor, dan TMT CLTN s.d selesai)</td>
-                <td style="font-style: italic;">{{ $drh->cltn ?: 'tidak pernah mengambil cuti di luar tanggungan negara (CLTN)' }}</td>
+                <td style="font-style: italic;">{{ $drh->cltn ?: '"tidak pernah mengambil cuti di luar tanggungan negara (CLTN)"' }}</td>
             </tr>
         </tbody>
     </table>
@@ -334,7 +334,7 @@
                 <td><br>Jabatan Atasan Langsung,
                 <td>
                     Ditetapkan di Pangkalpinang<br>
-                    Tanggal : {{ $fmt($drh->created_at, '%d %B %Y') }}
+                    Tanggal : {{ $fmt($drh->tgl_ditetapkan, '%d %B %Y') }}
                 </td>
             </tr>
             <tr class="space-tg">
@@ -402,7 +402,7 @@
                             <tr>
                                 <td class="sub-label-col">Nama</td>
                                 <td class="sub-titik-dua-col">:</td>
-                                <td class="sub-isi-col"><strong>{{ strtoupper($asn->nama ?? '-') }}</strong></td>
+                                <td class="sub-isi-col"><strong>{{ ucwords($asn->nama ?? '-') }}</strong></td>
                             </tr>
                             <tr>
                                 <td class="sub-label-col">NIP</td>
@@ -448,15 +448,26 @@
             <div class="ttd-container">
                 <div class="ttd-tempat-tanggal">
                     Dikeluarkan di : Pangkalpinang<br>
-                    Pada Tanggal : {{ $fmt($drh->created_at, '%d %B %Y') }}
+                    Pada Tanggal : {{ $fmt($drh->tgl_ditetapkan, '%d %B %Y') }}
                 </div>
-                <div class="ttd-jabatan">
-                    Plt. KEPALA DINAS PENDIDIKAN<br>
-                    PROVINSI KEP. BANGKA BELITUNG
-                </div>
-                <div class="ttd-spasi"></div>
-                <div class="ttd-nama">SAIPUL BAKHRI, S.Pd, M.M.</div>
-                <div class="ttd-nip">NIP. 19740430 200501 1 013</div>
+<div class="ttd-jabatan">
+    Plt. KEPALA DINAS PENDIDIKAN<br>
+    PROVINSI KEP. BANGKA BELITUNG
+</div>
+<div class="ttd-spasi"></div>
+<div class="ttd-nama">
+    @php
+        $nama = $drh->atasan_nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
+        $nama = str_replace('PLT.', 'Plt.', $nama);
+        $nama = str_replace('plt.', 'Plt.', $nama);
+        $nama = strtoupper($nama);
+        $nama = str_ireplace('S.PD', 'S.Pd', $nama);
+        $nama = str_ireplace('M.M.', 'M.M.', $nama);
+        $nama = str_ireplace('S.SOS', 'S.Sos', $nama);
+    @endphp
+    {{ $nama }}
+</div>
+                <div class="ttd-nip">NIP. {{ $drh->atasan_nip ?: '19740430 200501 1 013' }}</div>
             </div>
         </div>
     </div>

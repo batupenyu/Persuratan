@@ -43,6 +43,7 @@ class DrhSatyalancanaController extends Controller
             'pangkat' => 'nullable|string|max:255',
             'tmt_pangkat' => 'nullable|date',
             'no_sk_cpns' => 'nullable|string|max:255',
+            'tgl_sk_cpns' => 'nullable|date',
             'tmt_cpns' => 'nullable|date',
             'jabatan_terakhir' => 'nullable|string|max:255',
             'tmt_jabatan' => 'nullable|date',
@@ -55,6 +56,7 @@ class DrhSatyalancanaController extends Controller
             'atasan_nip' => 'nullable|string|max:50',
             'dasar' => 'nullable|string',
             'untuk' => 'nullable|string',
+            'tgl_ditetapkan' => 'nullable|date',
         ]);
 
         $drh = DrhSatyalancana::create($validated);
@@ -82,6 +84,7 @@ class DrhSatyalancanaController extends Controller
             'pangkat' => 'nullable|string|max:255',
             'tmt_pangkat' => 'nullable|date',
             'no_sk_cpns' => 'nullable|string|max:255',
+            'tgl_sk_cpns' => 'nullable|date',
             'tmt_cpns' => 'nullable|date',
             'jabatan_terakhir' => 'nullable|string|max:255',
             'tmt_jabatan' => 'nullable|date',
@@ -94,6 +97,7 @@ class DrhSatyalancanaController extends Controller
             'atasan_nip' => 'nullable|string|max:50',
             'dasar' => 'nullable|string',
             'untuk' => 'nullable|string',
+            'tgl_ditetapkan' => 'nullable|date',
         ]);
 
         $drh->update($validated);

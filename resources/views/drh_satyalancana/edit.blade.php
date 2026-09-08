@@ -62,7 +62,7 @@
 
                         <div>
                             <label class="block font-medium mb-1">TMT Pangkat</label>
-                            <input type="date" name="tmt_pangkat" value="{{ old('tmt_pangkat', $drh->tmt_pangkat) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
+                            <input type="date" name="tmt_pangkat" value="{{ old('tmt_pangkat', $drh->tmt_pangkat?->format('Y-m-d')) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
                         </div>
 
                         <div>
@@ -71,8 +71,13 @@
                         </div>
 
                         <div>
+                            <label class="block font-medium mb-1">Tgl. SK CPNS</label>
+                            <input type="date" name="tgl_sk_cpns" value="{{ old('tgl_sk_cpns', $drh->tgl_sk_cpns?->format('Y-m-d')) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
+                        </div>
+
+                        <div>
                             <label class="block font-medium mb-1">TMT CPNS</label>
-                            <input type="date" name="tmt_cpns" value="{{ old('tmt_cpns', $drh->tmt_cpns) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
+                            <input type="date" name="tmt_cpns" value="{{ old('tmt_cpns', $drh->tmt_cpns?->format('Y-m-d')) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
                         </div>
 
                         <div>
@@ -82,7 +87,7 @@
 
                         <div>
                             <label class="block font-medium mb-1">TMT Jabatan</label>
-                            <input type="date" name="tmt_jabatan" value="{{ old('tmt_jabatan', $drh->tmt_jabatan) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
+                            <input type="date" name="tmt_jabatan" value="{{ old('tmt_jabatan', $drh->tmt_jabatan?->format('Y-m-d')) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
                         </div>
 
                         <div>
@@ -92,7 +97,7 @@
 
                         <div>
                             <label class="block font-medium mb-1">Tanggal Keppres</label>
-                            <input type="date" name="tgl_kepres" value="{{ old('tgl_kepres', $drh->tgl_kepres) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
+                            <input type="date" name="tgl_kepres" value="{{ old('tgl_kepres', $drh->tgl_kepres?->format('Y-m-d')) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
                         </div>
 
                         <div>
@@ -141,12 +146,17 @@
 
                         <div class="md:col-span-2">
                             <label class="block font-medium mb-1">Dasar</label>
-                            <input type="text" name="dasar" value="{{ old('dasar', $drh->dasar ?? 'Surat Sekretariat Daerah Provinsi Kepulauan Bangka Belitung Nomor: 800/143/BKPSDM/2026 tanggal 20 Juli 2026 tentang Persyaratan Pengajuan Satyalancana Karya Satya, Kepala Dinas Pendidikan Provinsi Bangka Belitung.') }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
+                            <textarea name="dasar" rows="3" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">{{ old('dasar', $drh->dasar ?? 'Surat Sekretariat Daerah Provinsi Kepulauan Bangka Belitung Nomor: 800/143/BKPSDM/2026 tanggal 20 Juli 2026 tentang Persyaratan Pengajuan Satyalancana Karya Satya, Kepala Dinas Pendidikan Provinsi Bangka Belitung.') }}</textarea>
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="block font-medium mb-1">Untuk</label>
                             <textarea name="untuk" rows="3" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">{{ old('untuk', $drh->untuk ?? "Pengajuan Tanda Kehormatan Satyalancana Karya Satya 20 Tahun\nDilaksanakan dengan sebaik-baik dan penuh tanggung jawab.") }}</textarea>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-1">Tanggal Ditetapkan</label>
+                            <input type="date" name="tgl_ditetapkan" value="{{ old('tgl_ditetapkan', $drh->tgl_ditetapkan?->format('Y-m-d')) }}" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-gray-100">
                         </div>
                     </div>
 

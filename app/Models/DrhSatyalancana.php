@@ -17,6 +17,7 @@ class DrhSatyalancana extends Model
         'pangkat',
         'tmt_pangkat',
         'no_sk_cpns',
+        'tgl_sk_cpns',
         'tmt_cpns',
         'jabatan_terakhir',
         'tmt_jabatan',
@@ -29,13 +30,16 @@ class DrhSatyalancana extends Model
         'atasan_nip',
         'dasar',
         'untuk',
+        'tgl_ditetapkan',
     ];
 
     protected $casts = [
         'tmt_pangkat' => 'date',
+        'tgl_sk_cpns' => 'date',
         'tmt_cpns' => 'date',
         'tmt_jabatan' => 'date',
         'tgl_kepres' => 'date',
+        'tgl_ditetapkan' => 'date',
     ];
 
     public function asn(): BelongsTo
