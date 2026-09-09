@@ -66,11 +66,12 @@
                             ],
                             [
                                 'label' => 'Peserta Didik',
-                                'routes' => ['surat-keterangans.*', 'surat-kp4-olds.*', 'surat-panggilan-siswas.*', 'surat-penarikan-siswas.*'],
+                                'routes' => ['surat-keterangans.*', 'surat-kp4-olds.*', 'surat-panggilan-siswas.*', 'surat-skorsings.*', 'surat-penarikan-siswas.*'],
                                 'items' => [
                                     ['label' => 'Surat Keterangan', 'route' => 'surat-keterangans.index', 'routeName' => 'surat-keterangans.*'],
                                     ['label' => 'Surat KP4', 'route' => 'surat-kp4-olds.index', 'routeName' => 'surat-kp4-olds.*'],
                                     ['label' => 'Surat Panggilan Siswa', 'route' => 'surat-panggilan-siswas.index', 'routeName' => 'surat-panggilan-siswas.*'],
+                                    ['label' => 'Surat Skorsing', 'route' => 'surat-skorsings.index', 'routeName' => 'surat-skorsings.*'],
                                     ['label' => 'Surat Penarikan Siswa', 'route' => 'surat-penarikan-siswas.index', 'routeName' => 'surat-penarikan-siswas.*'],
                                 ],
                             ],
