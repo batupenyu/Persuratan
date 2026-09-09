@@ -101,7 +101,7 @@
         <tr><td class="label">NIS</td><td class="titik-dua">:</td><td>{{ $siswa->nis ?? '' }}</td></tr>
     </table>
 
-    <p class="paragraf-isi">Maka dengan ini kami dari pihak sekolah dengan sangat terpaksa memberikan skorsing kepada nama siswa tersebut di atas untuk tidak mengikuti kegiatan belajar mengajar di sekolah selama {{ $suratSkorsing->durasi_skorsing ?: '...................' }} {{ $periode }}, dengan tujuan memberi sanksi terhadap siswa atas pelanggaran yang dilakukan{{ $keteranganPelanggaran }} dan sekaligus memberikan kesempatan kepada orang tua siswa untuk lebih dekat dengan putranya dan memberikan pembinaan di rumah.</p>
+    <p class="paragraf-isi">Oleh karena itu, pihak sekolah memutuskan untuk memberikan sanksi akademis (skorsing) kepada siswa tersebut. Siswa yang bersangkutan tidak diperkenankan mengikuti kegiatan belajar mengajar di sekolah selama  {{ $suratSkorsing->durasi_skorsing ?: '...................' }} {{ $periode }}, Kebijakan ini diambil sebagai bentuk konsekuensi atas pelanggaran yang dilakukan, sekaligus memberikan kesempatan kepada Orang Tua/Wali untuk memberikan pembinaan dan pendampingan yang lebih intensif di rumah.</p>
 
     <p class="penutup-surat">Demikian Surat Skorsing ini dibuat untuk dipergunakan sebagaimana mestinya.</p>
 
