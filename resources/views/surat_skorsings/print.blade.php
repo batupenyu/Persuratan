@@ -62,8 +62,15 @@
         $jabatanPenandatangan = $penandatangan?->tugas_tambahan ?: ($penandatangan?->jabatan ?? 'Kepala Sekolah');
         $unitKerjaPenandatangan = $penandatangan?->unit_kerja ?: ($penandatangan?->lembaga_pengangkatan ?? 'SMK Negeri 1 Koba');
         $keteranganPelanggaran = $suratSkorsing->pelanggaran ? ' yaitu '.$suratSkorsing->pelanggaran : '';
-        $periode = $suratSkorsing->tanggal_mulai || $suratSkorsing->tanggal_selesai
-            ? 'terhitung mulai '.$fmt($suratSkorsing->tanggal_mulai).' sampai dengan '.$fmt($suratSkorsing->tanggal_selesai)
+        $tanggalMulai = $suratSkorsing->tanggal_mulai;
+        $tanggalSelesai = $suratSkorsing->tanggal_selesai;
+        if ($tanggalMulai && $tanggalSelesai && $tanggalMulai->format('m/Y') === $tanggalSelesai->format('m/Y')) {
+            $periodeTanggal = $tanggalMulai->format('d').'  s.d. '.$tanggalSelesai->format('d').' '.$tanggalMulai->format('F Y');
+        } else {
+            $periodeTanggal = $fmt($tanggalMulai).' sampai dengan '.$fmt($tanggalSelesai);
+        }
+        $periode = $tanggalMulai || $tanggalSelesai
+            ? 'terhitung mulai '.$periodeTanggal
             : 'terhitung mulai ................... sampai dengan ...................';
     @endphp
 
