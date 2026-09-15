@@ -31,6 +31,10 @@ class SuratNodin extends Model
 
     protected $casts = [
         'tanggal' => 'date',
+        'dari_plt' => 'boolean',
+        'dari_an' => 'boolean',
+        'penandatangan_plt' => 'boolean',
+        'penandatangan_an' => 'boolean',
     ];
 
     public function penandatangan(): BelongsTo
