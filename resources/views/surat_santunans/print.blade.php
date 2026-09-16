@@ -228,7 +228,7 @@
     <div class="signature-block">
       <div>
         {{ $suratSantunan->penandatangan->jabatan ?? '' }}
-        {{ $suratSantunan->penandatangan->lembaga_pengangkatan ?? '' }}
+        {{ $suratSantunan->penandatangan->unit_kerja ?? '' }}
       </div>
       <br /><br /><br />
       <div>
