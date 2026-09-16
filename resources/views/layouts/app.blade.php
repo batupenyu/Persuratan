@@ -48,7 +48,7 @@
                                 'label' => 'Perjalanan Dinas & Tugas',
                                 'routes' => ['surat-tugas.*', 'surat-tugas-pkls.*', 'drh-satyalancana.*'],
                                 'items' => [
-                                    ['label' => 'Surat Tugas', 'route' => 'surat-tugas.index', 'routeName' => 'surat-tugas.*'],
+                                    ['label' => 'Surat Tugas Pegawai', 'route' => 'surat-tugas.index', 'routeName' => 'surat-tugas.*'],
                                     ['label' => 'Surat Tugas PKL', 'route' => 'surat-tugas-pkls.index', 'routeName' => 'surat-tugas-pkls.*'],
                                     ['label' => 'DRH Satyalancana', 'route' => 'drh-satyalancana.index', 'routeName' => 'drh-satyalancana.*'],
                                 ],
@@ -84,7 +84,7 @@
                                     ['label' => 'Surat Resmi', 'route' => 'surat-resmis.index', 'routeName' => 'surat-resmis.*'],
                                     ['label' => 'Surat Undangan', 'route' => 'surat-undangans.index', 'routeName' => 'surat-undangans.*'],
                                     ['label' => 'Surat Pernyataan', 'route' => 'surat-pernyataans.index', 'routeName' => 'surat-pernyataans.*'],
-                                    ['label' => 'Surat Santunan', 'route' => 'surat-santunans.index', 'routeName' => 'surat-santunans.*'],
+                                    ['label' => 'Surat Santunan KORPRI', 'route' => 'surat-santunans.index', 'routeName' => 'surat-santunans.*'],
                                     ['label' => 'Surat Mewakili', 'route' => 'surat-mewakili.index', 'routeName' => 'surat-mewakili.*'],
                                     ['label' => 'Surat Aktif Mengajar', 'route' => 'surat-aktif-mengajars.index', 'routeName' => 'surat-aktif-mengajars.*'],
                                     ['label' => 'Persetujuan Magang', 'route' => 'persetujuan-magangs.index', 'routeName' => 'persetujuan-magangs.*'],
