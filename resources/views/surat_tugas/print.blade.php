@@ -223,62 +223,130 @@
     </div>
     <!-- <div class="spacer"></div> -->
     <div class="line">
-      @php
-        $atasan = $suratTugas->penandatangan;
-        $pegawaiTugas = $suratTugas->pegawaiTugas;
+            @php
+          $atasan = $suratTugas->penandatangan ?? null;
+          $pegawaiTugas = $suratTugas->pegawaiTugas ?? null;
 
-        $jabatanAtasan = $atasan->jabatan ?? '';
-        $unitKerjaAtasan = $atasan->unit_kerja ?? '';
-        $nama = $atasan->nama ?? '';
-        $pangkat = $atasan->pangkat_golongan ?? '';
-        $nip = $atasan->nip ?? '';
+          $jabatanAtasan   = $atasan->jabatan ?? '';
+          $unitKerjaAtasan = $atasan->unit_kerja ?? '';
+          $nama            = $atasan->nama ?? '';
+          $pangkat         = $atasan->pangkat_golongan ?? '';
+          $nip             = $atasan->nip ?? '';
+          $opdInduk        = $atasan->nama_opd_indu ?? '';
 
-        $jabatanTugas = $pegawaiTugas->jabatan ?? '';
-        $unitKerjaTugas = $pegawaiTugas->unit_kerja ?? '';
+          $jabatanTugas    = $pegawaiTugas->jabatan ?? '';
+          $unitKerjaTugas  = $pegawaiTugas->unit_kerja ?? '';
 
-        $isPlt = $suratTugas->penandatangan_plt ?? false;
-        $isAn = $suratTugas->penandatangan_an ?? false;
+          $isPlt = $suratTugas->penandatangan_plt ?? false;
+          $isPlh = false;
+          $isAn  = $suratTugas->penandatangan_an ?? false;
 
-        if ($isPlt && $isAn) {
-            $isAn = false;
-        }
+          // Prioritas: Plt > Plh > a.n. (hanya satu yang aktif)
+          if ($isPlt) {
+              $isPlh = false;
+              $isAn  = false;
+          } elseif ($isPlh) {
+              $isAn = false;
+          }
 
-        $prefix = '';
-        $indent = false;
-        $showTugas = false;
-        $unitKerja = '';
+          $prefix    = '';
+          $indent    = false;
+          $showTugas = false;
+          $unitKerja = '';
 
-        if ($isPlt) {
-            $prefix = 'Plt.' . html_entity_decode('&nbsp;');
-            $indent = true;
-            $showTugas = true;
-            $unitKerja = $unitKerjaTugas ?: $unitKerjaAtasan;
-        } elseif ($isAn) {
-            $prefix = 'a.n.' . html_entity_decode('&nbsp;');
-            $indent = true;
-            $showTugas = true;
-            $unitKerja = $unitKerjaAtasan;
-        } else {
-            $prefix = '';
-            $indent = false;
-            $showTugas = false;
-            $unitKerja = $unitKerjaAtasan;
-        }
+          if ($isPlt) {
+              $prefix    = 'Plt.&nbsp;';
+              $indent    = true;
+              $showTugas = true;
+              $unitKerja = $unitKerjaTugas ?: $unitKerjaAtasan;
+          } elseif ($isPlh) {
+              $prefix    = 'Plh.&nbsp;';
+              $indent    = true;
+              $showTugas = true;
+              $unitKerja = $unitKerjaTugas ?: $unitKerjaAtasan;
+          } elseif ($isAn) {
+              $prefix    = 'a.n.&nbsp;';
+              $indent    = true;
+              $showTugas = true;
+              $unitKerja = $unitKerjaAtasan;
+          } else {
+              $prefix    = '';
+              $indent    = false;
+              $showTugas = false;
+              $unitKerja = $unitKerjaAtasan;
+          }
 
-        $indentChar = html_entity_decode('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
+          $indentChar = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+
+          // Helper: UPPERCASE nama, tapi gelar (setelah koma) tetap title case
+          $upperNamaKeepGelar = function ($nama) {
+              if (blank($nama)) return '';
+
+              $parts     = explode(',', $nama, 2);
+              $namaDepan = trim($parts[0]);
+              $gelar     = isset($parts[1]) ? trim($parts[1]) : '';
+
+              $namaUpper = mb_strtoupper($namaDepan);
+
+              if ($gelar === '') {
+                  return $namaUpper;
+              }
+
+              $gelarFormatted = collect(explode(',', $gelar))
+                ->map(function ($gelarItem) {
+                  $gelarItem = rtrim(trim($gelarItem), '.');
+
+                  return ucwords(strtolower($gelarItem), '.');
+                })
+                ->implode(',');
+
+              return $namaUpper . ', ' . $gelarFormatted;
+          };
+
+          // Helper title case gelar (untuk pangkat, dll)
+          $titleCaseGelar = function ($text) {
+              if (blank($text)) return '';
+
+            $parts = array_map('trim', explode(',', $text, 2));
+              $pangkat = preg_replace_callback('/\bTk\s*\.\s*([ivxlcdm]+)/i', function ($m) {
+              return 'Tk. ' . mb_strtoupper($m[1]);
+            }, $parts[0]);
+
+            if (! isset($parts[1])) {
+              return $pangkat;
+            }
+
+            $golongan = preg_replace_callback('/^([ivxlcdm]+)\s*\/\s*([a-z])$/i', function ($m) {
+              return mb_strtoupper($m[1]) . '/' . mb_strtolower($m[2]);
+            }, $parts[1]);
+
+            return $pangkat . ', ' . $golongan;
+          };
+
+          // Jabatan & OPD -> UPPERCASE penuh
+          $jabatanAtasanUpper = mb_strtoupper($jabatanAtasan ?? '');
+          $jabatanTugasUpper  = mb_strtoupper($jabatanTugas ?? '');
+          $unitKerjaUpper     = mb_strtoupper($unitKerja ?? '');
+          $opdIndukUpper      = mb_strtoupper($opdInduk ?? '');
+
+          // Nama pegawai -> UPPERCASE, gelar tetap (S.Sos, S.Pd, M.Pd, S.Ag, S.T)
+          $namaFormatted      = $upperNamaKeepGelar($nama);
+
+          // Pangkat/golongan -> title case gelar
+          $pangkatFormatted   = $titleCaseGelar($pangkat);
       @endphp
-      {{ $prefix . $jabatanAtasan }}
-      <br>{{ $indent ? $indentChar . $unitKerja : $unitKerja }}
-      <br>
-      <br><br>
+
+      {!! $prefix . e($jabatanAtasanUpper) !!}{{ $unitKerjaUpper ? ' ' . $unitKerjaUpper : '' }}
+      <br>{!! $indent ? $indentChar : '' !!}{{ $opdIndukUpper }}
+      <br><br><br>
       @if($showTugas && $jabatanTugas)
-        <br>{{ $indentChar . $jabatanTugas }}
+          <br>{!! $indent ? $indentChar : '' !!}{{ $jabatanTugasUpper }}
       @endif
-      <br>{{ $indent ? $indentChar . $nama : $nama }}
+      <br>{!! $indent ? $indentChar : '' !!}{{ $namaFormatted }}
       @if($pangkat && $pangkat != '-')
-        <br>{{ $indent ? $indentChar . $pangkat : $pangkat }}
+          <br>{!! $indent ? $indentChar : '' !!}{{ $pangkatFormatted }}
       @endif
-      <br>{{ $indent ? $indentChar . 'NIP. ' . $nip : 'NIP. ' . $nip }}
+      <br>{!! $indent ? $indentChar : '' !!}NIP. {{ $nip }}
     </div>
   </div>
 
