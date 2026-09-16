@@ -28,7 +28,7 @@
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-600">
                             @forelse($suratPengantars as $suratPengantar)
                             <tr>
-                                <td class="px-4 py-2">{{ $suratPengantar->nomor_surat ?: '-' }}</td>
+                                <td class="px-4 py-2" style="width: 300px">{{ $suratPengantar->isi_surat ?: '-' }}</td>
                                 <td class="px-4 py-2">{{ $suratPengantar->tujuan_surat ?: '-' }}</td>
                                 <td class="px-4 py-2">{{ $suratPengantar->tanggal_ditetapkan ? \Carbon\Carbon::parse($suratPengantar->tanggal_ditetapkan)->format('d-m-Y') : '-' }}</td>
                                 <td class="px-4 py-2">

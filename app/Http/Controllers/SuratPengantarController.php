@@ -17,7 +17,7 @@ class SuratPengantarController extends Controller
     {
         $suratPengantars = SuratPengantar::with('penandatangan')
             ->latest()
-            ->paginate(10);
+            ->paginate(5);
 
         return view('surat_pengantars.index', compact('suratPengantars'));
     }
