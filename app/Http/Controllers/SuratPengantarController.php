@@ -99,7 +99,7 @@ class SuratPengantarController extends Controller
         ]);
     }
 
-    public static function formatTanggal($date, string $format = '%d %B %Y'): string
+    public static function formatTanggal(CarbonInterface|string|null $date, string $format = '%d %B %Y'): string
     {
         if (empty($date)) {
             return '-';
