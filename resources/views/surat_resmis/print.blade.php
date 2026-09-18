@@ -211,18 +211,71 @@
     </div>
 
     @if($penandatangan)
-    <div class="signature" style="padding-left: 350px">
+    <div class="signature" style="padding-left: 430px">
       <p>
-        {{ $suratResmi->tempat_ditetapkan }}, {{ $fmt($suratResmi->tanggal_ditetapkan) }} <br />
-        {{ $penandatangan->jabatan ?? '' }},
-      </p>
-      <br />
-      <br />
-      <br />
-      <p>
-        {{ $penandatangan->nama ?? '' }} <br />
-        @if($penandatangan->pangkat !== '' && $penandatangan->pangkat !== 'IX'){{ $penandatangan->pangkat }}, {{ $penandatangan->golongan }}<br>@endif
-        NIP. {{ $penandatangan->nip ?? '' }}
+        @php
+            $atasan = $penandatangan;
+            $jabatan = $atasan?->jabatan ?? '';
+            $unitKerja = $atasan?->unit_kerja ?? '';
+            $nama = $atasan?->nama ?? '';
+            $pangkat = $atasan?->pangkat_golongan ?? '';
+            $nip = $atasan?->nip ?? '';
+
+            $upperNamaKeepGelar = function ($nama) {
+                if (blank($nama)) return '';
+
+                $parts = explode(',', $nama, 2);
+                $namaDepan = trim($parts[0]);
+                $gelar = isset($parts[1]) ? trim($parts[1]) : '';
+                $namaUpper = mb_strtoupper($namaDepan);
+
+                if ($gelar === '') {
+                    return $namaUpper;
+                }
+
+                $gelarFormatted = collect(explode(',', $gelar))
+                    ->map(function ($gelarItem) {
+                        $gelarItem = rtrim(trim($gelarItem), '.');
+
+                        return ucwords(strtolower($gelarItem), '.');
+                    })
+                    ->implode(',');
+
+                return $namaUpper . ', ' . $gelarFormatted;
+            };
+
+            $titleCaseGelar = function ($text) {
+                if (blank($text)) return '';
+
+                $parts = array_map('trim', explode(',', $text, 2));
+                $pangkat = preg_replace_callback('/\bTk\s*\.\s*([ivxlcdm]+)/i', function ($m) {
+                    return 'Tk. ' . mb_strtoupper($m[1]);
+                }, $parts[0]);
+
+                if (! isset($parts[1])) {
+                    return $pangkat;
+                }
+
+                $golongan = preg_replace_callback('/^([ivxlcdm]+)\s*\/\s*([a-z])$/i', function ($m) {
+                    return mb_strtoupper($m[1]) . '/' . mb_strtolower($m[2]);
+                }, $parts[1]);
+
+                return $pangkat . ', ' . $golongan;
+            };
+
+            $jabatanUpper = mb_strtoupper($jabatan);
+            $unitKerjaUpper = mb_strtoupper($unitKerja);
+            $namaFormatted = $upperNamaKeepGelar($nama);
+            $pangkatFormatted = $titleCaseGelar($pangkat);
+        @endphp
+
+        {!! e($jabatanUpper) !!}{{ $unitKerjaUpper ? ' ' . $unitKerjaUpper : '' }}
+        <br><br><br><br>
+        {!! e($namaFormatted) !!}
+        @if($pangkat && $pangkat != '-')
+            <br>{!! e($pangkatFormatted) !!}
+        @endif
+        <br>NIP. {{ $nip }}
       </p>
     </div>
     @endif
