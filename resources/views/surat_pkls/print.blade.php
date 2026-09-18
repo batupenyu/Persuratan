@@ -115,11 +115,12 @@
         $namaJurusan = $suratPkl->nama_jurusan ?: 'Teknik Pengelasan (TP)';
         $jenisInstansi = $suratPkl->jenis_instansi_yang_dituju ?: 'Instansi';
         $lamaMagang = (int) ($suratPkl->lama_magang ?? 4);
+        $lamaMagangTerbilang = $angkaTerbilang($lamaMagang);
         $tglAwal = $suratPkl->tgl_awal_magang ? \Carbon\Carbon::parse($suratPkl->tgl_awal_magang) : \Carbon\Carbon::parse('2026-10-06');
         $tglAkhir = $suratPkl->tgl_akhir_magang ? \Carbon\Carbon::parse($suratPkl->tgl_akhir_magang) : \Carbon\Carbon::parse('2027-01-28');
         $noContact = $suratPkl->no_contact ?: '087819754201';
 
-        $defaultIsi = "Sehubungan dengan program kerja/kegiatan SMK Negeri 1 Koba TA {$tahunAjaran}, kami memohon kesediaan {$jenisInstansi} Bapak/Ibu untuk menerima siswa kelas {$namaKelas} jurusan {$namaJurusan} sejumlah {$jumlahSiswa} ({$angkaTerbilang($jumlahSiswa)}) murid dalam kegiatan Praktek Kerja Lapangan (PKL). Kegiatan ini direncanakan berlangsung selama {$lamaMagang} bulan, terhitung mulai tanggal {$fmt($tglAwal, '%d %B %Y')} hingga {$fmt($tglAkhir, '%d %B %Y')}. 
+        $defaultIsi = "Sehubungan dengan program kerja/kegiatan SMK Negeri 1 Koba TA {$tahunAjaran}, kami memohon kesediaan {$jenisInstansi} Bapak/Ibu untuk menerima siswa kelas {$namaKelas} jurusan {$namaJurusan} sejumlah {$jumlahSiswa} ({$angkaTerbilang($jumlahSiswa)}) murid dalam kegiatan Praktek Kerja Lapangan (PKL). Kegiatan ini direncanakan berlangsung selama {$lamaMagang} ({$lamaMagangTerbilang}) bulan, terhitung mulai tanggal {$fmt($tglAwal, '%d %B %Y')} hingga {$fmt($tglAkhir, '%d %B %Y')}. 
 
 Adapun data siswa yang bersangkutan akan segera kami kirimkan setelah menerima surat balasan kesediaan dari {$jenisInstansi} Bapak/Ibu. Untuk konfirmasi dan informasi lebih lanjut, silakan menghubungi Humas SMK Negeri 1 Koba di nomor HP/WA {$noContact}.
 
@@ -182,6 +183,19 @@ Demikian permohonan kami sampaikan, atas perhatian dan kerjasamanya kami ucapkan
           @php
             $atasan = $penandatangan;
             $nama = $atasan->nama ?? '';
+            $normalizeGelar = function (string $value): string {
+                $value = trim($value);
+                $value = preg_replace_callback('/\b([A-Z])\.([A-Z]{2,})(?=\.|\b)/', function ($m) {
+                    return $m[1] . '.' . ucfirst(strtolower($m[2]));
+                }, mb_strtoupper($value));
+
+                foreach (['M.PD' => 'M.Pd', 'S.PD' => 'S.Pd', 'S.PSI' => 'S.Psi', 'S.SOS' => 'S.Sos', 'S.AG' => 'S.Ag'] as $from => $to) {
+                    $value = str_ireplace($from, $to, $value);
+                }
+
+                return $value;
+            };
+            $nama = $normalizeGelar($nama);
             $pangkat = $atasan->pangkat_golongan ?? '';
             $nip = $atasan->nip ?? '';
             $jabatan = $atasan->jabatan ?? '';
@@ -190,7 +204,7 @@ Demikian permohonan kami sampaikan, atas perhatian dan kerjasamanya kami ucapkan
 
           {{ strtoupper($jabatan) }}{{ $unitKerja ? ' ' . strtoupper($unitKerja) : '' }}
           <br><br><br><br><br>
-          {{ strtoupper($nama) }}
+          {{ $nama }}
           @if($pangkat && $pangkat != '-')
               <br>{{ $pangkat }}
           @endif
