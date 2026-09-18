@@ -82,6 +82,7 @@
                                     ['label' => 'Surat Pengantar', 'route' => 'surat-pengantars.index', 'routeName' => 'surat-pengantars.*'],
                                     ['label' => 'Surat Rekomendasi', 'route' => 'surat-rekomendasis.index', 'routeName' => 'surat-rekomendasis.*'],
                                     ['label' => 'Surat Resmi', 'route' => 'surat-resmis.index', 'routeName' => 'surat-resmis.*'],
+                                    ['label' => 'Surat PKL', 'route' => 'surat-pkls.index', 'routeName' => 'surat-pkls.*'],
                                     ['label' => 'Surat Undangan', 'route' => 'surat-undangans.index', 'routeName' => 'surat-undangans.*'],
                                     ['label' => 'Surat Pernyataan', 'route' => 'surat-pernyataans.index', 'routeName' => 'surat-pernyataans.*'],
                                     ['label' => 'Surat Santunan KORPRI', 'route' => 'surat-santunans.index', 'routeName' => 'surat-santunans.*'],
