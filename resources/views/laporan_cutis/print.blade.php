@@ -264,7 +264,7 @@
                 <div class="signature-block" style="width: 250pt; margin-left: auto; text-align: center">
                     <p>Mengetahui,</p>
                     <p class="penandatangan">
-                        {{ $laporanCuti->penandatangan->tugas_tambahan ?? ($laporanCuti->penandatangan->jabatan ?? ($laporanCuti->penandatangan->pangkat_golongan ?? '')) }}<br /><br /><br />
+                        {{ $laporanCuti->penandatangan->tugas_tambahan ?? ($laporanCuti->penandatangan->jabatan ?? ($laporanCuti->penandatangan->pangkat_golongan ?? '')) }} {{$laporanCuti->penandatangan->unit_kerja  ?? ''}}<br /><br /><br />
                         {{ $laporanCuti->penandatangan->nama ?? '' }}<br />
                         {{ $laporanCuti->penandatangan->pangkat_golongan ?? '' }}<br />
                         NIP. {{ $laporanCuti->penandatangan->nip ?? '' }}
