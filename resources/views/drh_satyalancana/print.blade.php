@@ -342,69 +342,72 @@
         </tbody>
     </table>
 
-    <div class="signature-container">
-        <table class="signature-table">
-            <tr>
-                <td>Plt. KEPALA DINAS PENDIDIKAN<br>
-                    PROVINSI KEP. BANGKA BELITUNG
-                <td>
-                    Ditetapkan di Pangkalpinang<br>
-                    Tanggal : {{ $fmt($drh->tgl_ditetapkan, '%d %B %Y') }}
-                </td>
-            </tr>
-            <tr class="space-tg">
-                <td></td>
-                <td></td>
-            </tr>
-            <tr class="space-ttd">
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td style="font-weight: bold; text-decoration: underline;">
-                    <br>
-                    <br>
-                    <br>
-                    {{-- {{ $drh->atasan_nama ?: 'SAIPUL BAKHRI, S.Pd., M.M.' }} --}}
-                    @php
-                        $nama = $drh->atasan_nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
-                        $nama = str_replace('PLT.', 'Plt.', $nama);
-                        $nama = str_replace('plt.', 'Plt.', $nama);
-                        $nama = strtoupper($nama);
-                        $nama = str_ireplace('S.PD', 'S.Pd', $nama);
-                        $nama = str_ireplace('M.M.', 'M.M.', $nama);
-                        $nama = str_ireplace('S.SOS', 'S.Sos', $nama);
-                        $nama = str_ireplace('S.AG', 'S.Ag', $nama);
-                    @endphp
-                    {{ $nama }}
-                </td>
-                <td style="font-weight: bold; text-decoration: underline;">
-                    <br>
-                    <br>
-                    <br>
-                    {{-- {{ $asn->nama ?? '' }} --}}
-                    @php
-                        $nama = $asn->nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
-                        $nama = str_replace('PLT.', 'Plt.', $nama);
-                        $nama = str_replace('plt.', 'Plt.', $nama);
-                        $nama = strtoupper($nama);
-                        $nama = str_ireplace('S.PD', 'S.Pd', $nama);
-                        $nama = str_ireplace('M.M.', 'M.M.', $nama);
-                        $nama = str_ireplace('S.SOS', 'S.Sos', $nama);
-                        $nama = str_ireplace('S.AG', 'S.Ag', $nama);
-                        $nama = str_ireplace('M.PD', 'M.Pd', $nama);
-                    @endphp
-                    {{ $nama }}
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    NIP. {{ $drh->atasan_nip ?: '19740304 200501 1 013' }}
-                </td>
-                <td>NIP. {{ $asn->nip ?? '' }}</td>
-            </tr>
-        </table>
-    </div>
+   @php
+    // Nama atasan (kiri)
+    $namaKiri = optional($drh)->atasan_nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
+    $namaKiri = str_ireplace(['PLT.', 'plt.'], 'Plt.', $namaKiri);
+    $namaKiri = strtoupper($namaKiri);
+    $namaKiri = str_ireplace(['S.PD'], ['S.Pd'], $namaKiri);
+    $namaKiri = str_ireplace(['M.M.'], ['M.M.'], $namaKiri);
+    $namaKiri = str_ireplace(['S.SOS'], ['S.Sos'], $namaKiri);
+    $namaKiri = str_ireplace(['S.AG'], ['S.Ag'], $namaKiri);
+
+    // Nama ASN (kanan)
+    $namaKanan = optional($asn)->nama ?: 'SAIPUL BAKHRI, S.Pd, M.M.';
+    $namaKanan = str_ireplace(['PLT.', 'plt.'], 'Plt.', $namaKanan);
+    $namaKanan = strtoupper($namaKanan);
+    $namaKanan = str_ireplace(['S.PD'], ['S.Pd'], $namaKanan);
+    $namaKanan = str_ireplace(['M.M.'], ['M.M.'], $namaKanan);
+    $namaKanan = str_ireplace(['S.SOS'], ['S.Sos'], $namaKanan);
+    $namaKanan = str_ireplace(['S.AG'], ['S.Ag'], $namaKanan);
+    $namaKanan = str_ireplace(['M.PD'], ['M.Pd'], $namaKanan);
+
+    $nipKiri  = optional($drh)->atasan_nip ?: '19740304 200501 1 013';
+    $nipKanan = optional($asn)->nip ?? '';
+@endphp
+
+<div class="signature-container">
+    <table class="signature-table" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <!-- KOLOM KIRI: Jabatan -->
+            <td style="vertical-align: top; line-height: 1.5; padding: 0;">
+                <div style="padding-left: 0;">Plt.  &nbsp;KEPALA DINAS PENDIDIKAN</div>
+                <div style="padding-left: 40px;">PROVINSI KEP. BANGKA BELITUNG</div>
+            </td>
+
+            <!-- KOLOM KANAN: Ditetapkan & Tanggal -->
+            <td style="vertical-align: top; line-height: 1.5; padding: 0;">
+                <div style="padding-left: 0;">Ditetapkan di Pangkalpinang</div>
+                <div style="padding-left: 0;">Tanggal : {{ isset($fmt) ? $fmt(optional($drh)->tgl_ditetapkan ?? now(), '%d %B %Y') : '-' }}</div>
+            </td>
+        </tr>
+
+        <!-- Jarak untuk tanda tangan -->
+        <tr><td style="height: 80px;"></td><td></td></tr>
+
+        <tr>
+            <!-- KOLOM KIRI: Nama & NIP -->
+            <td style="vertical-align: top; line-height: 1.5; padding: 0; font-weight: bold;">
+                <div style="padding-left: 40px; text-decoration: underline;">
+                    {{ $namaKiri }}
+                </div>
+                <div style="padding-left: 40px;">
+                    NIP. {{ $nipKiri }}
+                </div>
+            </td>
+
+            <!-- KOLOM KANAN: Nama & NIP -->
+            <td style="vertical-align: top; line-height: 1.5; padding: 0; font-weight: bold;">
+                <div style="padding-left: 0; text-decoration: underline;">
+                    {{ $namaKanan }}
+                </div>
+                <div style="padding-left: 0;">
+                    NIP. {{ $nipKanan }}
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
 
 
     </div>
