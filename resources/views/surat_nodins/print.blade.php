@@ -96,14 +96,6 @@
             text-indent: 10mm;
         }
 
-        .penutup-surat {
-            font-size: 10pt;
-            line-height: 1.5;
-            text-align: justify;
-            margin-bottom: 3mm;
-            text-indent: 10mm;
-        }
-
         .tabel-peserta {
             width: 100%;
             border-collapse: collapse;
@@ -169,13 +161,7 @@
             text-align: center;
         }
 
-        .lampiran-link {
-            text-align: center;
-            margin: 5mm 0;
-            font-size: 9pt;
-        }
-
-        /* --- BAGIAN TANDA TANGAN (YANG DIPERBAIKI) --- */
+        /* --- BAGIAN TANDA TANGAN --- */
         .signature-wrapper {
             width: 100%;
             margin-top: 7mm;
@@ -211,15 +197,31 @@
             display: table-cell;
             vertical-align: top;
             text-align: left;
+            /* Jabatan, Unit Kerja, dan OPD dibuat Uppercase */
+            text-transform: uppercase;
         }
 
         .signature-space {
             height: 22mm;
         }
 
+        .signature-tugas {
+            /* Mewarisi uppercase */
+        }
+
         .signature-name {
             font-weight: bold;
             text-decoration: underline;
+            /* Mematikan uppercase global agar format S.Sos terjaga */
+            text-transform: none; 
+        }
+
+        .signature-pangkat {
+            text-transform: none;
+        }
+
+        .signature-nip {
+            text-transform: none;
         }
         /* ------------------------------------------- */
 
@@ -289,6 +291,70 @@
         NOTA DINAS
     </div>
 
+    @php
+        $atasan = $suratNodin->penandatangan ?? null;
+        $pegawaiTugas = $suratNodin->pegawaiTugas ?? null;
+
+        $jabatanAtasan   = $atasan->jabatan ?? '';
+        $unitKerjaAtasan = $atasan->unit_kerja ?? '';
+
+        $rawNamaAtasan = $atasan->nama ?? '';
+        if (str_contains($rawNamaAtasan, ',')) {
+            $parts = explode(',', $rawNamaAtasan, 2);
+            $namaAtasan = mb_strtoupper(trim($parts[0])) . ', ' . trim($parts[1]);
+        } else {
+            $namaAtasan = mb_strtoupper(trim($rawNamaAtasan));
+        }
+
+        $pangkatAtasan = $atasan->pangkat_golongan ?? '';
+        $nipAtasan     = $atasan->nip ?? '';
+        $opd           = $atasan->nama_opd_indu ?? '';
+
+        $jabatanTugas   = $pegawaiTugas->jabatan ?? '';
+        $unitKerjaTugas = $pegawaiTugas->unit_kerja ?? '';
+
+        // ✅ Normalisasi boolean yang lebih toleran
+        $toBool = function ($val) {
+            if (is_bool($val)) return $val;
+            if (is_numeric($val)) return (int) $val === 1;
+            if (is_string($val)) {
+                return in_array(strtolower(trim($val)), ['1', 'true', 'on', 'yes', 'ya', 'y'], true);
+            }
+            return false;
+        };
+
+        $isPlt = $toBool($suratNodin->penandatangan_plt ?? false);
+        $isAn  = $toBool($suratNodin->penandatangan_an  ?? false);
+
+        // Kalau dua-duanya true, prioritaskan Plt
+        if ($isPlt && $isAn) {
+            $isAn = false;
+        }
+
+        // Prefix untuk blok jabatan
+        $prefix    = '';
+        $showTugas = false;
+        $unitKerja = $unitKerjaAtasan;
+
+        if ($isPlt) {
+            $prefix    = 'Plt. ';
+            $showTugas = true;
+            $unitKerja = $unitKerjaTugas ?: $unitKerjaAtasan;
+        } elseif ($isAn) {
+            $prefix    = 'a.n. ';
+            $showTugas = true;
+            $unitKerja = $unitKerjaAtasan;
+        }
+
+// ✅ Prefix untuk "Dari"
+    $prefixDari = '';
+    if ($toBool($suratNodin->dari_plt ?? false)) {
+        $prefixDari = 'Plt. ';
+    } elseif ($toBool($suratNodin->dari_an ?? false)) {
+        $prefixDari = 'a.n. ';
+    }
+    @endphp
+
     {{-- IDENTITAS SURAT --}}
     <table class="identitas">
         <tr>
@@ -299,7 +365,7 @@
         <tr>
             <td class="label">Dari</td>
             <td class="colon">:</td>
-            <td>{!! nl2br(e($suratNodin->dari ?: '-')) !!}</td>
+            <td>{!! nl2br(e($prefixDari . ($suratNodin->dari ?: '-'))) !!}</td>
         </tr>
         <tr>
             <td class="label">Tanggal</td>
@@ -544,60 +610,13 @@
         </tbody>
     </table>
 
-    {{-- @if(count($displayGroups) > 15)
-        <div class="lampiran-link">
-            <em>Daftar lengkap peserta tercantum pada lampiran.</em>
-        </div>
-    @endif --}}
-
     @if($suratNodin->isi_surat)
     <div class="isi-surat">
-        {{-- {!! nl2br(e($suratNodin->isi_surat)) !!} --}}
         Demikian surat permohonan ini kami sampaikan atas perhatian Bapak, Kami ucapkan terima kasih.
     </div>
     @endif
 
     {{-- TANDA TANGAN --}}
-    @php
-        $atasan = $suratNodin->penandatangan;
-        $pegawaiTugas = $suratNodin->pegawaiTugas;
-
-        $jabatanAtasan   = $atasan->jabatan ?? '';
-        $unitKerjaAtasan = $atasan->unit_kerja ?? '';
-        $namaAtasan      = $atasan->nama ?? '';
-        $pangkatAtasan   = $atasan->pangkat_golongan ?? '';
-        $nipAtasan       = $atasan->nip ?? '';
-        $opd             = $atasan->nama_opd_indu ?? '';
-
-        $jabatanTugas   = $pegawaiTugas->jabatan ?? '';
-        $unitKerjaTugas = $pegawaiTugas->unit_kerja ?? '';
-
-        $isPlt = $suratNodin->penandatangan_plt ?? false;
-        $isAn  = $suratNodin->penandatangan_an ?? false;
-
-        if ($isPlt && $isAn) {
-            $isAn = false;
-        }
-
-        $prefix = '';
-        $showTugas = false;
-        $unitKerja = '';
-
-        if ($isPlt) {
-            $prefix    = 'Plt. ';
-            $showTugas = true;
-            $unitKerja = $unitKerjaTugas ?: $unitKerjaAtasan;
-        } elseif ($isAn) {
-            $prefix    = 'a.n. ';
-            $showTugas = true;
-            $unitKerja = $unitKerjaAtasan;
-        } else {
-            $prefix    = '';
-            $showTugas = false;
-            $unitKerja = $unitKerjaAtasan;
-        }
-    @endphp
-
     <div class="signature-wrapper">
         <div class="signature">
             <div class="signature-table">
@@ -606,28 +625,22 @@
                         <div class="signature-prefix-cell">{{ $prefix }}</div>
                     @endif
                     <div class="signature-content-cell">
-                        {{ $jabatanAtasan }}
-                        {{-- <br> --}}
-                        {{ $unitKerja }}
-                        <br>
-                        {{ $opd }}
-                        {{-- @if(!empty($opd))
-                            {{ $opd }}
-                        @endif --}}
+                        <div>{{ $jabatanAtasan }} {{ $unitKerja }}</div>
+                        <div>{{ $opd }}</div>
 
                         <div class="signature-space"></div>
 
                         @if($showTugas && $jabatanTugas)
-                            <div>{{ $jabatanTugas }}</div>
+                            <div class="signature-tugas">{{ $jabatanTugas }}</div>
                         @endif
 
                         <div class="signature-name">{{ $namaAtasan }}</div>
 
                         @if($pangkatAtasan && $pangkatAtasan != '-')
-                            <div>{{ $pangkatAtasan }}</div>
+                            <div class="signature-pangkat">{{ $pangkatAtasan }}</div>
                         @endif
 
-                        <div>NIP. {{ $nipAtasan }}</div>
+                        <div class="signature-nip">NIP. {{ $nipAtasan }}</div>
                     </div>
                 </div>
             </div>
