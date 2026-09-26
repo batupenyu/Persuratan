@@ -517,15 +517,25 @@
         }
 
         $displayGroups = array_values($rawGroups);
+
+        /*
+         * Cek apakah ada siswa dalam semua kelompok.
+         */
+        $hasSiswa = collect($displayGroups)
+            ->pluck('participants')
+            ->flatten()
+            ->contains(function ($p) {
+                return !empty($p['siswa']);
+            });
     @endphp
 
     <table class="tabel-peserta">
         <thead>
             <tr>
                 <th style="width: 4%;">No</th>
-                <th style="width: 21%;">Nama Pegawai / Siswa</th>
-                <th style="width: 15%;">NIP / NIS</th>
-                <th style="width: 15%;">Pangkat / Gol / Kelas</th>
+                <th style="width: 21%;">Nama {{ $hasSiswa ? 'Pegawai / Siswa' : 'Pegawai' }}</th>
+                <th style="width: 15%;">{{ $hasSiswa ? 'NIP / NIS' : 'NIP' }}</th>
+                <th style="width: 15%;">{{ $hasSiswa ? 'Pangkat / Gol / Kelas' : 'Pangkat / Gol' }}</th>
                 <th style="width: 14%;">Jabatan</th>
                 <th style="width: 14%;">Tanggal</th>
                 <th style="width: 17%;">Tempat Kegiatan</th>
