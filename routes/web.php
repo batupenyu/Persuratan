@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AsnController;
+use App\Http\Controllers\DaftarDudikaController;
 use App\Http\Controllers\DataSiswaController;
 use App\Http\Controllers\DrhSatyalancanaController;
 use App\Http\Controllers\LampiranController;
@@ -54,6 +55,9 @@ Route::get('data-siswa/import', [DataSiswaController::class, 'import'])->name('d
 Route::post('data-siswa/import', [DataSiswaController::class, 'importStore'])->name('data-siswa.import.store');
 Route::delete('data-siswa/destroy-all', [DataSiswaController::class, 'destroyAll'])->name('data-siswa.destroy.all');
 Route::resource('data-siswa', DataSiswaController::class)->parameter('data-siswa', 'siswa');
+
+Route::delete('daftar-dudika/destroy-all', [DaftarDudikaController::class, 'destroyAll'])->name('daftar-dudika.destroy.all');
+Route::resource('daftar-dudika', DaftarDudikaController::class)->parameter('daftar-dudika', 'dudika');
 
 Route::resource('spds', SpdController::class)->except(['show', 'destroy']);
 Route::delete('spds/{spd}', [SpdController::class, 'destroy'])->name('spds.destroy');

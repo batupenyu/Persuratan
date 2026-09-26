@@ -5,6 +5,7 @@
 
     $asns = $asns ?? [];
     $siswas = $siswas ?? [];
+    $dudikas = $dudikas ?? [];
     $logos = $logos ?? [];
 
     /*
@@ -41,6 +42,7 @@
                         ? \Carbon\Carbon::parse($peserta->tgl_akhir_kegiatan)->format('Y-m-d')
                         : '',
                     'tempat_kegiatan' => [],
+                    'dudika_ids' => [],
                 ];
 
             }
@@ -135,6 +137,7 @@
                 'tgl_awal' => '',
                 'tgl_akhir' => '',
                 'tempat_kegiatan' => [''],
+                'dudika_id' => null,
             ]
         ];
 
@@ -663,6 +666,9 @@
                     $selectedSiswa =
                         $group['siswa_ids'] ?? [];
 
+                    $selectedDudika =
+                        $group['dudika_id'] ?? null;
+
                     $tempatList =
                         $group['tempat_kegiatan'] ?? [''];
 
@@ -842,6 +848,45 @@
                                 class="w-full border rounded-lg
                                        px-4 py-3">
 
+                        </div>
+
+                    </div>
+
+
+                    {{-- DUDIKA --}}
+
+                    <div class="mt-6">
+
+                        <label class="form-label">
+                            DUDIKA <span class="text-gray-400">(opsional)</span>
+                        </label>
+
+                        <select
+                            name="peserta[{{ $currentIndex }}][dudika_id]"
+                            class="w-full border rounded-lg px-3 py-2
+                                   dark:bg-gray-700 dark:text-gray-100">
+
+                            <option value="">
+                                -- Pilih DUDIKA --
+                            </option>
+
+                            @foreach($dudikas as $dudika)
+
+                                <option
+                                    value="{{ $dudika->id }}"
+                                    {{ ($selectedDudika ?? null) == $dudika->id ? 'selected' : '' }}>
+
+                                    {{ $dudika->nama_dudika }}
+
+                                </option>
+
+                            @endforeach
+
+                        </select>
+
+                        <div class="form-help">
+                            Jika dipilih, nama DUDIKA akan
+                            ditampilkan pada kolom Tempat Kegiatan.
                         </div>
 
                     </div>
@@ -1085,6 +1130,45 @@
                         class="w-full border rounded-lg
                                px-4 py-3">
 
+                </div>
+
+            </div>
+
+
+            {{-- DUDIKA --}}
+
+            <div class="mt-6">
+
+                <label class="form-label">
+                    DUDIKA <span class="text-gray-400">(opsional)</span>
+                </label>
+
+                <select
+                    name="peserta[__INDEX__][dudika_id]"
+                    class="w-full border rounded-lg px-3 py-2
+                           dark:bg-gray-700 dark:text-gray-100">
+
+                    <option value="">
+                        -- Pilih DUDIKA --
+                    </option>
+
+                    @foreach($dudikas as $dudika)
+
+                        <option
+                            value="{{ $dudika->id }}"
+                            {{ ($selectedDudika ?? null) == $dudika->id ? 'selected' : '' }}>
+
+                            {{ $dudika->nama_dudika }}
+
+                        </option>
+
+                    @endforeach
+
+                </select>
+
+                <div class="form-help">
+                    Jika dipilih, nama DUDIKA akan
+                    ditampilkan pada kolom Tempat Kegiatan.
                 </div>
 
             </div>

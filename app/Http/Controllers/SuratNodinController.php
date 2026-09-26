@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Asn;
 use App\Models\DataSiswa;
+use App\Models\DaftarDudika;
 use App\Models\LogoSetting;
 use App\Models\PhotoNodin;
 use App\Models\SuratNodin;
@@ -35,6 +36,7 @@ class SuratNodinController extends Controller
     {
         $asns = Asn::orderBy('nama')->get();
         $siswas = DataSiswa::orderBy('nama')->get();
+        $dudikas = DaftarDudika::orderBy('nama_dudika')->get();
         $logos = LogoSetting::orderBy('name')->get();
 
         $defaultPenandatanganId = Asn::defaultPenandatanganId();
@@ -44,6 +46,7 @@ class SuratNodinController extends Controller
             compact(
                 'asns',
                 'siswas',
+                'dudikas',
                 'logos',
                 'defaultPenandatanganId'
             )
@@ -85,6 +88,7 @@ class SuratNodinController extends Controller
     {
         $asns = Asn::orderBy('nama')->get();
         $siswas = DataSiswa::orderBy('nama')->get();
+        $dudikas = DaftarDudika::orderBy('nama_dudika')->get();
         $logos = LogoSetting::orderBy('name')->get();
 
         $suratNodin->load(
@@ -99,6 +103,7 @@ class SuratNodinController extends Controller
             compact(
                 'asns',
                 'siswas',
+                'dudikas',
                 'logos',
                 'suratNodin',
                 'defaultPenandatanganId'
@@ -168,7 +173,8 @@ class SuratNodinController extends Controller
             'penandatangan',
             'pegawaiTugas',
             'pesertaSuratUsulans.pegawai',
-            'pesertaSuratUsulans.siswa'
+            'pesertaSuratUsulans.siswa',
+            'pesertaSuratUsulans.dudika'
         );
 
         $kopSuratBase64 = null;
@@ -416,14 +422,28 @@ class SuratNodinController extends Controller
                 'nullable|string|max:255',
 
 
-            /*
-             * ==============================
-             * PESERTA
-             * ==============================
-             */
+    /*
+              * ==============================
+              * PESERTA
+              * ==============================
+              */
 
             'peserta' =>
                 'nullable|array',
+
+            /*
+              * DUDIKA
+              *
+              * Opsional, boleh memilih lebih dari satu.
+              * Bila dipilih, nama DUDIKA akan
+              * ditampilkan pada kolom Tempat Kegiatan
+              * di cetakan Surat Nodin.
+              */
+            'peserta.*.dudika_id' =>
+                'nullable|array',
+
+            'peserta.*.dudika_id.*' =>
+                'nullable|integer|exists:daftar_dudika,id',
 
 
             /*
@@ -534,11 +554,68 @@ class SuratNodinController extends Controller
         }
 
 
+        /*
+         * Peta (id => nama) Daftar DUDIKA.
+         *
+         * Dipakai untuk:
+         * - menambahkan nama DUDIKA ke daftar
+         *   tempat_kegiatan, sehingga nama DUDIKA
+         *   ditampilkan pada kolom Tempat Kegiatan
+         *   di cetakan Surat Nodin.
+         */
+        $dudikaMap =
+            DaftarDudika::pluck('nama_dudika', 'id')
+                ->toArray();
+
+
         foreach ($pesertaList as $peserta) {
 
             if (!is_array($peserta)) {
                 continue;
             }
+
+
+            /*
+             * ==========================================
+             * DUDIKA (opsional, multiple)
+             * ==========================================
+             *
+             * Bisa memilih lebih dari satu DUDIKA.
+             * Setiap nama DUDIKA yang dipilih akan
+             * ditambahkan ke daftar tempat kegiatan
+             * sehingga muncul pada kolom Tempat
+             * Kegiatan di cetakan Surat Nodin, dan
+             * dudika_id masing-masingnya tersimpan
+             * pada tiap rekatan tempat.
+             */
+
+            $dudikaIds =
+                $peserta['dudika_id'] ?? [];
+
+            if (!is_array($dudikaIds)) {
+                $dudikaIds =
+                    $dudikaIds !== null &&
+                    $dudikaIds !== ''
+                        ? [$dudikaIds]
+                        : [];
+            }
+
+            $dudikaIds = collect($dudikaIds)
+                ->flatten()
+                ->filter(
+                    fn ($id) =>
+                        $id !== null &&
+                        $id !== ''
+                )
+                ->map(
+                    fn ($id) => (int) $id
+                )
+                ->filter(
+                    fn ($id) => $id > 0
+                )
+                ->unique()
+                ->values()
+                ->all();
 
 
             /*
@@ -650,6 +727,66 @@ class SuratNodinController extends Controller
 
             /*
              * ==========================================
+             * SINKIGIT DUDIKA KE TEMPAT KEGIATAN
+             * ==========================================
+             *
+             * Setiap DUDIKA yang dipilih:
+             * - nama DUDIKA ditambahkan ke tempatList
+             * - nama <=> dudika_id dicatat pada
+             *   $tempatDudikaMap agar tiap rekatin
+             *   tempat yang dihasilkan menyimpan
+             *   dudika_id yang tepat.
+             */
+
+            $tempatDudikaMap = [];
+
+            foreach ($dudikaIds as $dudikaId) {
+
+                if (!isset($dudikaMap[$dudikaId])) {
+                    continue;
+                }
+
+                $dudikaNama =
+                    $dudikaMap[$dudikaId];
+
+                if (
+                    !in_array(
+                        $dudikaNama,
+                        $tempatList,
+                        true
+                    )
+                ) {
+
+                    if (
+                        count($tempatList) === 1 &&
+                        $tempatList[0] === null
+                    ) {
+
+                        $tempatList = [
+                            $dudikaNama
+                        ];
+
+                    } else {
+
+                        $tempatList[] =
+                            $dudikaNama;
+
+                        $tempatList =
+                            array_values($tempatList);
+
+                    }
+
+                }
+
+                $tempatDudikaMap[
+                    $dudikaNama
+                ] = $dudikaId;
+
+            }
+
+
+            /*
+             * ==========================================
              * TANGGAL
              * ==========================================
              */
@@ -719,8 +856,11 @@ class SuratNodinController extends Controller
                                         $tglAkhir,
 
                                     'tempat_kegiatan' =>
-                                        $tempat,
-                                ]);
+                                    $tempat,
+
+                                'dudika_id' =>
+                                    $tempatDudikaMap[$tempat] ?? null,
+                            ]);
                         }
                     }
                 }
@@ -758,6 +898,9 @@ class SuratNodinController extends Controller
 
                                 'tempat_kegiatan' =>
                                     $tempat,
+
+                                'dudika_id' =>
+                                    $tempatDudikaMap[$tempat] ?? null,
                             ]);
                     }
                 }
@@ -795,6 +938,9 @@ class SuratNodinController extends Controller
 
                                 'tempat_kegiatan' =>
                                     $tempat,
+
+                                'dudika_id' =>
+                                    $tempatDudikaMap[$tempat] ?? null,
                             ]);
                     }
                 }

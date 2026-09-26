@@ -16,6 +16,7 @@ class PesertaSuratUsulan extends Model
         'tgl_awal_kegiatan',
         'tgl_akhir_kegiatan',
         'tempat_kegiatan',
+        'dudika_id',
     ];
 
     protected $casts = [
@@ -36,5 +37,10 @@ class PesertaSuratUsulan extends Model
     public function siswa(): BelongsTo
     {
         return $this->belongsTo(DataSiswa::class, 'siswa_id');
+    }
+
+    public function dudika(): BelongsTo
+    {
+        return $this->belongsTo(DaftarDudika::class, 'dudika_id');
     }
 }
