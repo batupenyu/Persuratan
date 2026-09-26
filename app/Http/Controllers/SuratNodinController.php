@@ -380,6 +380,35 @@ class SuratNodinController extends Controller
      */
     private function validateData(Request $request): array
     {
+        /*
+         * Buang kelompok peserta yang kosong
+         * (tanpa pegawai dan tanpa siswa).
+         *
+         * Kelompok kosong tidak menghasilkan data,
+         * sehingga tidak perlu divalidasi.
+         */
+        $pesertaTerisi = collect(
+            $request->input('peserta', [])
+        )
+            ->filter(
+                fn ($row) =>
+                    is_array($row)
+                    &&
+                    (
+                        !empty(array_filter(
+                            (array) ($row['pegawai_id'] ?? [])
+                        ))
+                        ||
+                        !empty(array_filter(
+                            (array) ($row['siswa_id'] ?? [])
+                        ))
+                    )
+            )
+            ->values()
+            ->all();
+
+        $request->merge(['peserta' => $pesertaTerisi]);
+
         $validated = $request->validate([
 
             /*
@@ -476,12 +505,18 @@ class SuratNodinController extends Controller
 
             /*
              * TANGGAL KEGIATAN
+             *
+             * Wajib diisi untuk setiap kelompok peserta
+             * yang sudah berisi pegawai atau siswa,
+             * agar cetak Surat Nodin tidak ada baris
+             * peserta tanpa tanggal.
              */
             'peserta.*.tgl_awal_kegiatan' =>
-                'nullable|date',
+                'required|date',
 
             'peserta.*.tgl_akhir_kegiatan' =>
-                'nullable|date',
+                'required|date'
+                . '|after_or_equal:peserta.*.tgl_awal_kegiatan',
 
 
             /*
@@ -497,6 +532,21 @@ class SuratNodinController extends Controller
 
             'peserta.*.tempat_kegiatan.*' =>
                 'nullable|string|max:5000',
+        ], [
+            'peserta.*.tgl_awal_kegiatan.required' =>
+                'Tanggal mulai kegiatan peserta wajib diisi.',
+
+            'peserta.*.tgl_akhir_kegiatan.required' =>
+                'Tanggal selesai kegiatan peserta wajib diisi.',
+
+            'peserta.*.tgl_awal_kegiatan.date' =>
+                'Tanggal mulai kegiatan peserta tidak valid.',
+
+            'peserta.*.tgl_akhir_kegiatan.date' =>
+                'Tanggal selesai kegiatan peserta tidak valid.',
+
+            'peserta.*.tgl_akhir_kegiatan.after_or_equal' =>
+                'Tanggal selesai kegiatan peserta harus sama dengan atau setelah tanggal mulai kegiatan.',
         ]);
 
 

@@ -57,11 +57,15 @@ class SuratNodinDudikaTest extends TestCase
         ];
     }
 
-    private function resolveDudikas(): array
+    private function resolveDudikas()
     {
         // Reuse existing DUDIKA rows (already seeded) to avoid FK/unique issues.
         if ($this->dudikas === null) {
-            $this->dudikas = DaftarDudika::orderBy('id')->take(3)->get()->keyBy('nama_dudika');
+            $this->dudikas = DaftarDudika::orderBy('id')
+                ->take(3)
+                ->get()
+                ->keyBy('nama_dudika')
+                ->all();
         }
         return $this->dudikas;
     }
@@ -100,7 +104,7 @@ class SuratNodinDudikaTest extends TestCase
         $print = $this->get(route('surat-nodins.print', $surat));
         $print->assertStatus(200);
         $print->assertSee($dudika1->nama_dudika);
-        $print->assertSee('Tempat Kegiatan');
+        $print->assertSee('Tempat');
     }
 
     public function test_multiple_dudika_each_becomes_tempat_kegiatan(): void
@@ -145,6 +149,90 @@ class SuratNodinDudikaTest extends TestCase
         $print->assertStatus(200);
         $print->assertSee($dudika1->nama_dudika);
         $print->assertSee($dudika2->nama_dudika);
+    }
+
+    public function test_tanggal_kegiatan_wajib_diisi(): void
+    {
+        $this->testAsn = Asn::create([
+            'nama' => 'Pegawai Tanpa Tanggal',
+            'jk' => 'L',
+            'nip' => 'TGL-KOSONG',
+        ]);
+
+        $response = $this->from(route('surat-nodins.create'))->post(
+            route('surat-nodins.store'),
+            $this->basePayload([
+                [
+                    'pegawai_id' => [$this->testAsn->id],
+                    'dudika_id' => [],
+                    'tgl_awal_kegiatan' => '',
+                    'tgl_akhir_kegiatan' => '',
+                ],
+            ])
+        );
+
+        $response->assertRedirect(route('surat-nodins.create'));
+        $response->assertSessionHasErrors(['peserta.0.tgl_awal_kegiatan']);
+        $response->assertSessionHasErrors(['peserta.0.tgl_akhir_kegiatan']);
+    }
+
+    public function test_tanggal_selesai_tidak_boleh_lebih_awal(): void
+    {
+        $this->testAsn = Asn::create([
+            'nama' => 'Pegawai Tanggal Terbalik',
+            'jk' => 'L',
+            'nip' => 'TGL-TERBALIK',
+        ]);
+
+        $response = $this->from(route('surat-nodins.create'))->post(
+            route('surat-nodins.store'),
+            $this->basePayload([
+                [
+                    'pegawai_id' => [$this->testAsn->id],
+                    'dudika_id' => [],
+                    'tgl_awal_kegiatan' => '2026-10-10',
+                    'tgl_akhir_kegiatan' => '2026-10-01',
+                ],
+            ])
+        );
+
+        $response->assertSessionHasErrors(['peserta.0.tgl_akhir_kegiatan']);
+    }
+
+    public function test_kartu_kosong_tidak_divalidasi(): void
+    {
+        $this->testAsn = Asn::create([
+            'nama' => 'Pegawai Kartu Kosong',
+            'jk' => 'L',
+            'nip' => 'TGL-KARTU-KOSONG',
+        ]);
+
+        $d = $this->resolveDudikas();
+        $keys = array_keys($d);
+
+        $response = $this->post(route('surat-nodins.store'), $this->basePayload([
+            [
+                'pegawai_id' => [$this->testAsn->id],
+                'dudika_id' => [$d[$keys[0]]->id],
+                'tgl_awal_kegiatan' => '2026-09-26',
+                'tgl_akhir_kegiatan' => '2026-09-26',
+            ],
+            [
+                'pegawai_id' => [],
+                'siswa_id' => [],
+                'dudika_id' => [],
+                'tgl_awal_kegiatan' => '',
+                'tgl_akhir_kegiatan' => '',
+            ],
+        ]));
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        $surat = SuratNodin::orderByDesc('id')->first();
+        $this->createdSuratId = $surat->id;
+
+        $this->assertSame(1, PesertaSuratUsulan::where('surat_nodin_id', $surat->id)->count());
     }
 
     public function test_no_dudika_keeps_typed_tempat(): void

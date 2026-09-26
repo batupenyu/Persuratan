@@ -628,14 +628,22 @@
                             <input type="date"
                                    name="peserta[{{ $currentIndex }}][tgl_awal_kegiatan]"
                                    value="{{ $group['tgl_awal'] ?? '' }}"
-                                   class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                   class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                   data-tgl-awal>
+                            <div class="form-help text-red-600 dark:text-red-400 {{ $errors->has('peserta.' . $currentIndex . '.tgl_awal_kegiatan') ? '' : 'hidden' }}" data-error-tgl-awal>
+                                @error('peserta.{{ $currentIndex }}.tgl_awal_kegiatan') {{ $message }} @enderror
+                            </div>
                         </div>
                         <div>
                             <label class="form-label">Tanggal Selesai Kegiatan</label>
                             <input type="date"
                                    name="peserta[{{ $currentIndex }}][tgl_akhir_kegiatan]"
                                    value="{{ $group['tgl_akhir'] ?? '' }}"
-                                   class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                   class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                   data-tgl-akhir>
+                            <div class="form-help text-red-600 dark:text-red-400 {{ $errors->has('peserta.' . $currentIndex . '.tgl_akhir_kegiatan') ? '' : 'hidden' }}" data-error-tgl-akhir>
+                                @error('peserta.{{ $currentIndex }}.tgl_akhir_kegiatan') {{ $message }} @enderror
+                            </div>
                         </div>
                     </div>
 
@@ -734,12 +742,16 @@
                 <div>
                     <label class="form-label">Tanggal Mulai Kegiatan</label>
                     <input type="date" name="peserta[__INDEX__][tgl_awal_kegiatan]"
-                           class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                           class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                           data-tgl-awal>
+                    <div class="form-help text-red-600 dark:text-red-400 hidden" data-error-tgl-awal></div>
                 </div>
                 <div>
                     <label class="form-label">Tanggal Selesai Kegiatan</label>
                     <input type="date" name="peserta[__INDEX__][tgl_akhir_kegiatan]"
-                           class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                           class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                           data-tgl-akhir>
+                    <div class="form-help text-red-600 dark:text-red-400 hidden" data-error-tgl-akhir></div>
                 </div>
             </div>
 
@@ -1039,10 +1051,108 @@
             }
         });
 
+        // =========================================================
+        // VALIDASI TANGGAL KEGIATAN
+        // =========================================================
+        var formPeserta = pesertaList.closest('form');
+
+        function tampilkanPesanError(card, pesanAwal, pesanAkhir) {
+            [].forEach.call(
+                card.querySelectorAll('[data-error-tgl-awal], [data-error-tgl-akhir]'),
+                function (el) { el.classList.add('hidden'); el.textContent = ''; }
+            );
+
+            [].forEach.call(
+                card.querySelectorAll('input[type="date"]'),
+                function (input) { input.classList.remove('border-red-500'); }
+            );
+
+            if (pesanAwal) {
+                var elAwal = card.querySelector('[data-error-tgl-awal]');
+                if (elAwal) {
+                    elAwal.textContent = pesanAwal;
+                    elAwal.classList.remove('hidden');
+                }
+            }
+
+            if (pesanAkhir) {
+                var elAkhir = card.querySelector('[data-error-tgl-akhir]');
+                if (elAkhir) {
+                    elAkhir.textContent = pesanAkhir;
+                    elAkhir.classList.remove('hidden');
+                }
+            }
+        }
+
+        function validasiTanggal() {
+            var daftarPesan = [];
+            var kartuPertama = null;
+
+            pesertaList.querySelectorAll('.peserta-card').forEach(function (card, index) {
+                var nomor = index + 1;
+
+                var selectPegawai = card.querySelector('.pegawai-select2');
+                var selectSiswa   = card.querySelector('.siswa-select2');
+                var adaPeserta    = (selectPegawai && selectPegawai.selectedOptions.length > 0)
+                    || (selectSiswa && selectSiswa.selectedOptions.length > 0);
+
+                var inputAwal  = card.querySelector('[data-tgl-awal]');
+                var inputAkhir = card.querySelector('[data-tgl-akhir]');
+
+                var pesanAwal  = '';
+                var pesanAkhir = '';
+
+                if (adaPeserta) {
+                    var nilaiAwal  = inputAwal ? inputAwal.value : '';
+                    var nilaiAkhir = inputAkhir ? inputAkhir.value : '';
+
+                    if (!nilaiAwal) {
+                        pesanAwal = 'Tanggal mulai kegiatan wajib diisi.';
+                    }
+
+                    if (!nilaiAkhir) {
+                        pesanAkhir = 'Tanggal selesai kegiatan wajib diisi.';
+                    }
+
+                    if (nilaiAwal && nilaiAkhir && nilaiAkhir < nilaiAwal) {
+                        pesanAkhir = 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai.';
+                    }
+                }
+
+                if (pesanAwal || pesanAkhir) {
+                    if (!kartuPertama) kartuPertama = card;
+                    daftarPesan.push('Peserta ' + nomor + ': ' + (pesanAwal || pesanAkhir));
+                }
+
+                tampilkanPesanError(card, pesanAwal, pesanAkhir);
+            });
+
+            if (daftarPesan.length === 0) return true;
+
+            if (kartuPertama) {
+                kartuPertama.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            alert(
+                'Lengkapi tanggal kegiatan terlebih dahulu.\n\n'
+                + daftarPesan.join('\n')
+            );
+
+            return false;
+        }
+
+        if (formPeserta) {
+            formPeserta.addEventListener('submit', function (e) {
+                if (!validasiTanggal()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            });
+        }
+
         // ---------- AUTO KOP SURAT ----------
         var selectDari = document.getElementById('select-dari');
         var selectKop  = document.getElementById('select-kop');
-
         if (selectDari && selectKop) {
             selectDari.addEventListener('change', function () {
                 if (this.value === 'Kepala SMK Negeri 1 Koba') {
