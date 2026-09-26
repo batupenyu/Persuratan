@@ -17,7 +17,7 @@ class DaftarDudikaController extends Controller
             ->when($search, function ($query, $search) {
                 return $query->where('nama_dudika', 'like', "%{$search}%");
             })
-            ->latest()
+            ->orderBy('nama_dudika')
             ->paginate(10)
             ->withQueryString();
 
