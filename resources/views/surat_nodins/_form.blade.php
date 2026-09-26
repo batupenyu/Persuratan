@@ -10,7 +10,12 @@
 
     /*
     |--------------------------------------------------------------------------
-    | Grouping peserta lama berdasarkan (tgl_awal, tgl_akhir)
+    | Grouping peserta lama
+    |--------------------------------------------------------------------------
+    | Berdasarkan rentang tanggal (tgl_awal, tgl_akhir)
+    | dan kelompok pegawai/siswa yang saling terhubung,
+    | sehingga kartu peserta pada saat create tidak
+    | menggabung maupun terpecah saat edit.
     |--------------------------------------------------------------------------
     */
 
@@ -37,7 +42,11 @@
 
     if (isset($suratNodin) && $suratNodin->pesertaSuratUsulans->count() > 0) {
 
-        $groupedPeserta = [];
+        /*
+         * Tahap 1: kelompokkan baris berdasarkan
+         * rentang tanggal (tgl_awal + tgl_akhir).
+         */
+        $rowsByTanggal = [];
 
         foreach ($suratNodin->pesertaSuratUsulans as $peserta) {
 
@@ -49,83 +58,121 @@
                 ? \Carbon\Carbon::parse($peserta->tgl_akhir_kegiatan)->format('Y-m-d')
                 : '';
 
-            $key = $tglAwal . '_' . $tglAkhir;
+            $rowsByTanggal[$tglAwal . '_' . $tglAkhir][] = [
+                'tgl_awal' => $tglAwal,
+                'tgl_akhir' => $tglAkhir,
+                'peserta' => $peserta,
+            ];
+        }
 
-            if (!isset($groupedPeserta[$key])) {
+        $groupedPeserta = [];
+
+        foreach ($rowsByTanggal as $tglKey => $rows) {
+
+            /*
+             * Tahap 2: pisahkan kartu yang memang
+             * berbeda pada saat create.
+             *
+             * Penyimpanan membuat kombinasi
+             * (pegawai x siswa x tempat), sehingga
+             * kelompok hanya berdasarkan tanggal
+             * akan menggabungkan beberapa kartu.
+             */
+            $groupedRows = \App\Support\PesertaGrouping::group(
+                array_map(
+                    fn($row) => [
+                        'pegawai_id' => $row['peserta']->pegawai_id,
+                        'siswa_id' => $row['peserta']->siswa_id,
+                        'tempat' => $row['peserta']->tempat_kegiatan,
+                        'row' => $row,
+                    ],
+                    $rows
+                )
+            );
+
+            foreach ($groupedRows as $groupIndex => $groupRows) {
+
+                $key = $tglKey . '#' . $groupIndex;
+
                 $groupedPeserta[$key] = [
                     'pegawai_ids'      => [],
                     'siswa_ids'        => [],
-                    'tgl_awal'         => $tglAwal,
-                    'tgl_akhir'        => $tglAkhir,
+                    'tgl_awal'         => $groupRows[0]['row']['tgl_awal'],
+                    'tgl_akhir'        => $groupRows[0]['row']['tgl_akhir'],
                     'tempat_kegiatan'  => [],
                     'dudika_ids'       => [],
                 ];
-            }
 
-            if ($peserta->pegawai_id
-                && !in_array($peserta->pegawai_id, $groupedPeserta[$key]['pegawai_ids'])) {
-                $groupedPeserta[$key]['pegawai_ids'][] = $peserta->pegawai_id;
-            }
+                foreach ($groupRows as $item) {
 
-            if ($peserta->siswa_id
-                && !in_array($peserta->siswa_id, $groupedPeserta[$key]['siswa_ids'])) {
-                $groupedPeserta[$key]['siswa_ids'][] = $peserta->siswa_id;
-            }
+                    $peserta = $item['row']['peserta'];
 
-            /*
-             * Tempat kegiatan.
-             *
-             * Nama DUDIKA tidak boleh muncul pada
-             * field ini.
-             *
-             * Data lama dapat menyimpan nama DUDIKA
-             * pada tempat_kegiatan tanpa dudika_id
-             * (bahkan beberapa nama dalam satu baris
-             * dipisahkan baris baru), sehingga setiap
-             * baris dicocokkan dengan daftar DUDIKA.
-             */
-            $tempatParts = preg_split(
-                '/\r\n|\r|\n/',
-                (string) ($peserta->tempat_kegiatan ?? '')
-            );
-
-            foreach ($tempatParts as $tempatPart) {
-
-                $tempat = rtrim(trim($tempatPart), ', ');
-
-                if ($tempat === '') {
-                    continue;
-                }
-
-                $dudikaIdTempat = $dudikaNameMap[$tempat] ?? null;
-
-                if ($dudikaIdTempat) {
-
-                    if (!in_array(
-                        $dudikaIdTempat,
-                        $groupedPeserta[$key]['dudika_ids']
-                    )) {
-                        $groupedPeserta[$key]['dudika_ids'][] = $dudikaIdTempat;
+                    if ($peserta->pegawai_id
+                        && !in_array($peserta->pegawai_id, $groupedPeserta[$key]['pegawai_ids'])) {
+                        $groupedPeserta[$key]['pegawai_ids'][] = $peserta->pegawai_id;
                     }
 
-                    continue;
-                }
+                    if ($peserta->siswa_id
+                        && !in_array($peserta->siswa_id, $groupedPeserta[$key]['siswa_ids'])) {
+                        $groupedPeserta[$key]['siswa_ids'][] = $peserta->siswa_id;
+                    }
 
-                if ($peserta->dudika_id) {
-                    continue;
-                }
+                    /*
+                     * Tempat kegiatan.
+                     *
+                     * Nama DUDIKA tidak boleh muncul pada
+                     * field ini.
+                     *
+                     * Data lama dapat menyimpan nama DUDIKA
+                     * pada tempat_kegiatan tanpa dudika_id
+                     * (bahkan beberapa nama dalam satu baris
+                     * dipisahkan baris baru), sehingga setiap
+                     * baris dicocokkan dengan daftar DUDIKA.
+                     */
+                    $tempatParts = preg_split(
+                        '/\r\n|\r|\n/',
+                        (string) ($peserta->tempat_kegiatan ?? '')
+                    );
 
-                if (!in_array(
-                    $tempat,
-                    $groupedPeserta[$key]['tempat_kegiatan']
-                )) {
-                    $groupedPeserta[$key]['tempat_kegiatan'][] = $tempat;
-                }
-            }
+                    foreach ($tempatParts as $tempatPart) {
 
-            if ($peserta->dudika_id
-                && !in_array($peserta->dudika_id, $groupedPeserta[$key]['dudika_ids'])) {
-                $groupedPeserta[$key]['dudika_ids'][] = $peserta->dudika_id;
+                        $tempat = rtrim(trim($tempatPart), ', ');
+
+                        if ($tempat === '') {
+                            continue;
+                        }
+
+                        $dudikaIdTempat = $dudikaNameMap[$tempat] ?? null;
+
+                        if ($dudikaIdTempat) {
+
+                            if (!in_array(
+                                $dudikaIdTempat,
+                                $groupedPeserta[$key]['dudika_ids']
+                            )) {
+                                $groupedPeserta[$key]['dudika_ids'][] = $dudikaIdTempat;
+                            }
+
+                            continue;
+                        }
+
+                        if ($peserta->dudika_id) {
+                            continue;
+                        }
+
+                        if (!in_array(
+                            $tempat,
+                            $groupedPeserta[$key]['tempat_kegiatan']
+                        )) {
+                            $groupedPeserta[$key]['tempat_kegiatan'][] = $tempat;
+                        }
+                    }
+
+                    if ($peserta->dudika_id
+                        && !in_array($peserta->dudika_id, $groupedPeserta[$key]['dudika_ids'])) {
+                        $groupedPeserta[$key]['dudika_ids'][] = $peserta->dudika_id;
+                    }
+                }
             }
         }
 

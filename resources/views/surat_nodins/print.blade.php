@@ -148,6 +148,15 @@
             padding-left: 15px;
         }
 
+        .siswa-list {
+            margin: 4px 0 0 0;
+            padding-left: 18px;
+        }
+
+        .siswa-item {
+            margin-bottom: 2px;
+        }
+
         .kegiatan-tanggal {
             text-align: center;
             vertical-align: middle !important;
@@ -464,56 +473,54 @@
             $tempat = trim((string) $dudikaVal);
 
             /*
-             * Satu baris peserta bisa memuat pegawai
+             * Satu baris peserta dapat memuat pegawai
              * dan siswa sekaligus (hasil kombinasi
-             * pegawai x siswa saat penyimpanan), sehingga
-             * kedua tipe diproses terpisah supaya data
-             * siswa tetap ikut ditampilkan.
+             * pegawai x siswa saat penyimpanan).
+             *
+             * Siswa tidak/baru boleh ditampilkan sebagai
+             * baris sendiri. Jika ada pegawai, siswa
+             * digabung sebagai daftar bernomor di bawah
+             * nama pegawai pada baris yang sama.
              */
-            $entities = [];
-
-            if ($peserta->pegawai_id && $peserta->pegawai) {
-                $entities[] = [
-                    'type' => 'pegawai',
-                    'key'  => 'pegawai_' . $peserta->pegawai_id,
-                    'data' => $peserta->pegawai,
-                ];
-            }
-
+            $pegawai = null;
             $siswa = $peserta->siswa ?? $peserta->pesertaSiswa ?? null;
 
-            if ($siswa) {
-                $entities[] = [
-                    'type' => 'siswa',
-                    'key'  => 'siswa_' . ($siswa->id ?? $peserta->siswa_id ?? 'unknown'),
-                    'data' => $siswa,
-                ];
-            } elseif (!empty($peserta->siswa_id)) {
-                $entities[] = [
-                    'type' => 'siswa',
-                    'key'  => 'siswa_' . $peserta->siswa_id,
-                    'data' => $peserta,
-                ];
-            }
-
-            if (empty($entities)) {
+            if ($peserta->pegawai_id && $peserta->pegawai) {
+                $pegawai = $peserta->pegawai;
+            } elseif (!$siswa && empty($peserta->siswa_id)) {
                 continue;
             }
 
-            foreach ($entities as $entityItem) {
-                $groupKey = $entityItem['key'] . '_' . $awalRaw . '_' . $akhirRaw;
+            if ($pegawai) {
+                $groupKey = 'pegawai_' . $peserta->pegawai_id . '_' . $awalRaw . '_' . $akhirRaw;
+                $type = 'pegawai';
+                $entity = $pegawai;
+            } else {
+                $siswaId = $siswa->id ?? $peserta->siswa_id ?? 'unknown';
+                $groupKey = 'siswa_' . $siswaId . '_' . $awalRaw . '_' . $akhirRaw;
+                $type = 'siswa';
+                $entity = $siswa ?? $peserta;
+            }
 
-                if (!isset($rawGroups[$groupKey])) {
-                    $rawGroups[$groupKey] = [
-                        'tanggal_formatted' => $formatTanggalRange($awalRaw, $akhirRaw),
-                        'type'              => $entityItem['type'],
-                        'entity'            => $entityItem['data'],
-                        'tempat_list'       => [],
-                    ];
-                }
+            if (!isset($rawGroups[$groupKey])) {
+                $rawGroups[$groupKey] = [
+                    'tanggal_formatted' => $formatTanggalRange($awalRaw, $akhirRaw),
+                    'type'              => $type,
+                    'entity'            => $entity,
+                    'tempat_list'       => [],
+                    'siswa_list'        => [],
+                ];
+            }
 
-                if ($tempat && !in_array($tempat, $rawGroups[$groupKey]['tempat_list'])) {
-                    $rawGroups[$groupKey]['tempat_list'][] = $tempat;
+            if ($tempat && !in_array($tempat, $rawGroups[$groupKey]['tempat_list'])) {
+                $rawGroups[$groupKey]['tempat_list'][] = $tempat;
+            }
+
+            if ($pegawai && $siswa) {
+                $siswaKey = $siswa->id ?? $peserta->siswa_id ?? 'unknown';
+
+                if (!array_key_exists($siswaKey, $rawGroups[$groupKey]['siswa_list'])) {
+                    $rawGroups[$groupKey]['siswa_list'][$siswaKey] = $siswa;
                 }
             }
         }
@@ -548,6 +555,7 @@
                     $entity = $group['entity'];
                     $isPegawai = ($group['type'] === 'pegawai');
                     $tempatList = $group['tempat_list'];
+                    $siswaList = array_values($group['siswa_list'] ?? []);
                 @endphp
 
                 <tr>
@@ -557,6 +565,18 @@
                     <td>
                         @if($isPegawai)
                             <div class="pegawai-nama">{{ $entity->nama ?: '-' }}</div>
+
+                            @if(count($siswaList) > 0)
+                                <ol class="siswa-list">
+                                    @foreach($siswaList as $itemSiswa)
+                                        <li class="siswa-item">
+                                            {{ strtoupper($itemSiswa->nama ?? '-') }}
+                                            ({{ $itemSiswa->nis ?: ($itemSiswa->nisn ?: '-') }})
+                                            ({{ $itemSiswa->kelas ?: '-' }})
+                                        </li>
+                                    @endforeach
+                                </ol>
+                            @endif
                         @else
                             <div class="label-siswa">Siswa:</div>
                             <div>{{ strtoupper($entity->nama ?? '-') }}</div>
@@ -569,7 +589,7 @@
                             <div>{{ $entity->nip ?: '-' }}</div>
                         @else
                             <div class="label-nis">NIS:</div>
-                            <div>{{ $entity->nis ?? $entity->nisn ?? '-' }}</div>
+                            <div>{{ $entity->nis ?: ($entity->nisn ?: '-') }}</div>
                         @endif
                     </td>
 
