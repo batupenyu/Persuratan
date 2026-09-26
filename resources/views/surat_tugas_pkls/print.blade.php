@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Surat Tugas PKL SMKN 1 Koba</title>
     <style>
+        @page {
+            size: A4 portrait;
+            margin: 20mm 15mm;
+        }
         body {
             font-family: Arial, Helvetica, sans-serif;
             line-height: 1.4;
@@ -110,11 +114,13 @@
             body {
                 background-color: #fff;
                 padding: 0;
+                width: auto;
             }
             .container {
                 box-shadow: none;
                 padding: 0;
                 width: 100%;
+                min-height: 0;
             }
             .no-print { display: none !important; }
         }
