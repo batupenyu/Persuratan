@@ -570,8 +570,8 @@
                                 <ol class="siswa-list">
                                     @foreach($siswaList as $itemSiswa)
                                         <li class="siswa-item">
-                                            {{ strtoupper($itemSiswa->nama ?? '-') }}
-                                            ({{ $itemSiswa->nis ?: ($itemSiswa->nisn ?: '-') }})
+                                            {{ ucwords(strtolower($itemSiswa->nama ?? '-')) }}
+                                            {{-- ({{ $itemSiswa->nis ?: ($itemSiswa->nisn ?: '-') }}) --}}
                                             ({{ $itemSiswa->kelas ?: '-' }})
                                         </li>
                                     @endforeach
