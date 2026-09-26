@@ -131,7 +131,7 @@
             $prefix = $isAn ? 'a.n. ' : '';
         @endphp
         @if($isAn)
-            <p>an. Kepala SMK Negeri 1 Koba <br>
+            <p>an. KEPALA SMK NEGERI 1 KOBA <br>
                 <span class="indent">
                 {{ $penandatangan->jabatan ?? '' }}</span></p>
             <div class="indent">
@@ -141,7 +141,7 @@
                 <p>NIP. {{ $nipTertanda ?? '' }}</p>
             </div>
         @else
-            <p>Kepala SMK Negeri 1 Koba</p>
+            <p>KEPALA SMK NEGERI 1 KOBA</p>
             <div class="signature-space"></div>
             <p><strong>{{ $namaTertanda ?? '' }}</strong><br>
             {{ $pangkatTertanda ?? '' }}<br>
