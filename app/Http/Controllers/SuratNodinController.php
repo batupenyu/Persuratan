@@ -93,7 +93,9 @@ class SuratNodinController extends Controller
 
         $suratNodin->load(
             'penandatangan',
-            'pesertaSuratUsulans'
+            'pesertaSuratUsulans.pegawai',
+            'pesertaSuratUsulans.siswa',
+            'pesertaSuratUsulans.dudika'
         );
 
         $defaultPenandatanganId = Asn::defaultPenandatanganId();
@@ -210,7 +212,8 @@ class SuratNodinController extends Controller
             'penandatangan',
             'pegawaiTugas',
             'pesertaSuratUsulans.pegawai',
-            'pesertaSuratUsulans.siswa'
+            'pesertaSuratUsulans.siswa',
+            'pesertaSuratUsulans.dudika'
         );
 
         return view(
@@ -247,7 +250,8 @@ class SuratNodinController extends Controller
             'penandatangan',
             'pegawaiTugas',
             'pesertaSuratUsulans.pegawai',
-            'pesertaSuratUsulans.siswa'
+            'pesertaSuratUsulans.siswa',
+            'pesertaSuratUsulans.dudika'
         );
 
         return view(
@@ -517,17 +521,6 @@ class SuratNodinController extends Controller
 
     /**
      * Sinkronisasi peserta Surat Nodin.
-     *
-     * Struktur form:
-     *
-     * peserta[0][pegawai_id][]
-     * peserta[0][siswa_id][]
-     * peserta[0][tgl_awal_kegiatan]
-     * peserta[0][tgl_akhir_kegiatan]
-     * peserta[0][tempat_kegiatan][]
-     *
-     * Semua ID disimpan sebagai nilai tunggal
-     * pada setiap baris database.
      */
     private function syncPeserta(
         SuratNodin $suratNodin,
@@ -553,16 +546,6 @@ class SuratNodinController extends Controller
             return;
         }
 
-
-        /*
-         * Peta (id => nama) Daftar DUDIKA.
-         *
-         * Dipakai untuk:
-         * - menambahkan nama DUDIKA ke daftar
-         *   tempat_kegiatan, sehingga nama DUDIKA
-         *   ditampilkan pada kolom Tempat Kegiatan
-         *   di cetakan Surat Nodin.
-         */
         $dudikaMap =
             DaftarDudika::pluck('nama_dudika', 'id')
                 ->toArray();
@@ -573,21 +556,6 @@ class SuratNodinController extends Controller
             if (!is_array($peserta)) {
                 continue;
             }
-
-
-            /*
-             * ==========================================
-             * DUDIKA (opsional, multiple)
-             * ==========================================
-             *
-             * Bisa memilih lebih dari satu DUDIKA.
-             * Setiap nama DUDIKA yang dipilih akan
-             * ditambahkan ke daftar tempat kegiatan
-             * sehingga muncul pada kolom Tempat
-             * Kegiatan di cetakan Surat Nodin, dan
-             * dudika_id masing-masingnya tersimpan
-             * pada tiap rekatan tempat.
-             */
 
             $dudikaIds =
                 $peserta['dudika_id'] ?? [];
@@ -617,13 +585,6 @@ class SuratNodinController extends Controller
                 ->values()
                 ->all();
 
-
-            /*
-             * ==========================================
-             * PEGAWAI
-             * ==========================================
-             */
-
             $pegawaiIds =
                 $peserta['pegawai_id'] ?? [];
 
@@ -651,13 +612,6 @@ class SuratNodinController extends Controller
                 ->unique()
                 ->values()
                 ->all();
-
-
-            /*
-             * ==========================================
-             * SISWA
-             * ==========================================
-             */
 
             $siswaIds =
                 $peserta['siswa_id'] ?? [];
@@ -687,13 +641,6 @@ class SuratNodinController extends Controller
                 ->values()
                 ->all();
 
-
-            /*
-             * ==========================================
-             * TEMPAT KEGIATAN
-             * ==========================================
-             */
-
             $tempatList =
                 $peserta['tempat_kegiatan'] ?? [];
 
@@ -715,28 +662,9 @@ class SuratNodinController extends Controller
                 ->values()
                 ->all();
 
-
-            /*
-             * Jika tidak ada tempat,
-             * tetap buat record dengan NULL.
-             */
             if (empty($tempatList)) {
                 $tempatList = [null];
             }
-
-
-            /*
-             * ==========================================
-             * SINKIGIT DUDIKA KE TEMPAT KEGIATAN
-             * ==========================================
-             *
-             * Setiap DUDIKA yang dipilih:
-             * - nama DUDIKA ditambahkan ke tempatList
-             * - nama <=> dudika_id dicatat pada
-             *   $tempatDudikaMap agar tiap rekatin
-             *   tempat yang dihasilkan menyimpan
-             *   dudika_id yang tepat.
-             */
 
             $tempatDudikaMap = [];
 
@@ -784,13 +712,6 @@ class SuratNodinController extends Controller
 
             }
 
-
-            /*
-             * ==========================================
-             * TANGGAL
-             * ==========================================
-             */
-
             $tglAwal =
                 $peserta['tgl_awal_kegiatan']
                 ?? null;
@@ -799,35 +720,12 @@ class SuratNodinController extends Controller
                 $peserta['tgl_akhir_kegiatan']
                 ?? null;
 
-
-            /*
-             * ==========================================
-             * TIDAK ADA PEGAWAI DAN TIDAK ADA SISWA
-             * ==========================================
-             */
-
             if (
                 empty($pegawaiIds) &&
                 empty($siswaIds)
             ) {
                 continue;
             }
-
-
-            /*
-             * ==========================================
-             * PEGAWAI × SISWA × TEMPAT
-             * ==========================================
-             *
-             * Contoh:
-             *
-             * 2 pegawai
-             * 3 siswa
-             * 2 tempat
-             *
-             * = 2 × 3 × 2
-             * = 12 record database
-             */
 
             if (
                 !empty($pegawaiIds) &&
@@ -868,13 +766,6 @@ class SuratNodinController extends Controller
                 continue;
             }
 
-
-            /*
-             * ==========================================
-             * HANYA PEGAWAI
-             * ==========================================
-             */
-
             if (!empty($pegawaiIds)) {
 
                 foreach ($pegawaiIds as $pegawaiId) {
@@ -907,13 +798,6 @@ class SuratNodinController extends Controller
 
                 continue;
             }
-
-
-            /*
-             * ==========================================
-             * HANYA SISWA
-             * ==========================================
-             */
 
             if (!empty($siswaIds)) {
 
@@ -950,14 +834,6 @@ class SuratNodinController extends Controller
 
     /**
      * Format tanggal Indonesia.
-     *
-     * Contoh:
-     *
-     * formatTanggal($tanggal)
-     *     22 Mei 2026
-     *
-     * formatTanggal($tanggal, '%A, %d %B %Y')
-     *     Jumat, 22 Mei 2026
      */
     public static function formatTanggal(
         $date,

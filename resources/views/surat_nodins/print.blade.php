@@ -118,12 +118,12 @@
         .tabel-peserta td {
             border: 1px solid #000;
             padding: 4px 5px;
-            vertical-align: top;
+            vertical-align: top !important;
         }
 
         .tabel-peserta th {
             text-align: center;
-            vertical-align: middle;
+            vertical-align: middle !important;
             font-weight: bold;
             background: #f2f2f2;
         }
@@ -143,22 +143,14 @@
             margin-bottom: 2px;
         }
 
-        .daftar-siswa {
+        .dudika-ol {
             margin: 0;
             padding-left: 15px;
         }
 
-        .daftar-siswa li, .siswa-item {
-            margin-bottom: 2px;
-        }
-
-        .kegiatan-tanggal, .kegiatan-tempat {
-            vertical-align: middle !important;
-            line-height: 1.3;
-        }
-
         .kegiatan-tanggal {
             text-align: center;
+            vertical-align: middle !important;
         }
 
         /* --- BAGIAN TANDA TANGAN --- */
@@ -197,7 +189,6 @@
             display: table-cell;
             vertical-align: top;
             text-align: left;
-            /* Jabatan, Unit Kerja, dan OPD dibuat Uppercase */
             text-transform: uppercase;
         }
 
@@ -205,25 +196,18 @@
             height: 22mm;
         }
 
-        .signature-tugas {
-            /* Mewarisi uppercase */
-        }
+        .signature-tugas {}
 
         .signature-name {
             font-weight: bold;
             text-decoration: underline;
-            /* Mematikan uppercase global agar format S.Sos terjaga */
             text-transform: none; 
         }
 
-        .signature-pangkat {
-            text-transform: none;
-        }
-
+        .signature-pangkat,
         .signature-nip {
             text-transform: none;
         }
-        /* ------------------------------------------- */
 
         .no-print {
             width: 210mm;
@@ -254,11 +238,9 @@
         }
 
         @media print {
-            html,
-            body {
+            html, body {
                 background: #fff;
             }
-
             .page {
                 width: 210mm;
                 min-height: 297mm;
@@ -267,7 +249,6 @@
                 box-shadow: none;
                 overflow: visible;
             }
-
             .no-print {
                 display: none !important;
             }
@@ -313,7 +294,6 @@
         $jabatanTugas   = $pegawaiTugas->jabatan ?? '';
         $unitKerjaTugas = $pegawaiTugas->unit_kerja ?? '';
 
-        // ✅ Normalisasi boolean yang lebih toleran
         $toBool = function ($val) {
             if (is_bool($val)) return $val;
             if (is_numeric($val)) return (int) $val === 1;
@@ -326,12 +306,10 @@
         $isPlt = $toBool($suratNodin->penandatangan_plt ?? false);
         $isAn  = $toBool($suratNodin->penandatangan_an  ?? false);
 
-        // Kalau dua-duanya true, prioritaskan Plt
         if ($isPlt && $isAn) {
             $isAn = false;
         }
 
-        // Prefix untuk blok jabatan
         $prefix    = '';
         $showTugas = false;
         $unitKerja = $unitKerjaAtasan;
@@ -346,13 +324,12 @@
             $unitKerja = $unitKerjaAtasan;
         }
 
-// ✅ Prefix untuk "Dari"
-    $prefixDari = '';
-    if ($toBool($suratNodin->dari_plt ?? false)) {
-        $prefixDari = 'Plt. ';
-    } elseif ($toBool($suratNodin->dari_an ?? false)) {
-        $prefixDari = 'a.n. ';
-    }
+        $prefixDari = '';
+        if ($toBool($suratNodin->dari_plt ?? false)) {
+            $prefixDari = 'Plt. ';
+        } elseif ($toBool($suratNodin->dari_an ?? false)) {
+            $prefixDari = 'a.n. ';
+        }
     @endphp
 
     {{-- IDENTITAS SURAT --}}
@@ -376,7 +353,7 @@
                         ? \App\Http\Controllers\SuratNodinController::formatTanggal(
                             $suratNodin->tanggal,
                             '%d %B %Y'
-                        )
+                          )
                         : '-'
                 }}
             </td>
@@ -417,7 +394,7 @@
         </div>
     @endif
 
-    {{-- LOGIC & TABEL PESERTA --}}
+    {{-- LOGIC & PENGELOMPOKAN PESERTA --}}
     @php
         $normalisasiTanggal = function ($tanggal) {
             if (!$tanggal) return '';
@@ -468,7 +445,7 @@
         };
 
         $pesertaList = collect($suratNodin->pesertaSuratUsulans ?? [])
-            ->filter(fn($p) => $p->pegawai_id || $p->siswa_id)
+            ->filter(fn($p) => $p->pegawai_id || $p->siswa_id || $p->siswa)
             ->values();
 
         $rawGroups = [];
@@ -476,59 +453,80 @@
         foreach ($pesertaList as $peserta) {
             $awalRaw  = $normalisasiTanggal($peserta->tgl_awal_kegiatan ?? null);
             $akhirRaw = $normalisasiTanggal($peserta->tgl_akhir_kegiatan ?? null);
-            $tempat   = trim((string) ($peserta->tempat_kegiatan ?? ''));
+            
+            $dudikaVal = '';
+            if (isset($peserta->dudika)) {
+                $dudikaVal = is_object($peserta->dudika) ? ($peserta->dudika->nama_dudika ?? $peserta->dudika->nama ?? $peserta->dudika->name ?? '') : $peserta->dudika;
+            }
+            if (empty($dudikaVal)) {
+                $dudikaVal = $peserta->tempat_kegiatan ?? '-';
+            }
+            $tempat = trim((string) $dudikaVal);
 
-            $activityKey = $awalRaw . '|' . $akhirRaw . '|' . mb_strtolower($tempat);
+            /*
+             * Satu baris peserta bisa memuat pegawai
+             * dan siswa sekaligus (hasil kombinasi
+             * pegawai x siswa saat penyimpanan), sehingga
+             * kedua tipe diproses terpisah supaya data
+             * siswa tetap ikut ditampilkan.
+             */
+            $entities = [];
 
-            if (!isset($rawGroups[$activityKey])) {
-                $rawGroups[$activityKey] = [
-                    'tanggal_formatted' => $formatTanggalRange($awalRaw, $akhirRaw),
-                    'tempat'            => $tempat,
-                    'participants'      => [],
-                    'participant_keys'  => [],
+            if ($peserta->pegawai_id && $peserta->pegawai) {
+                $entities[] = [
+                    'type' => 'pegawai',
+                    'key'  => 'pegawai_' . $peserta->pegawai_id,
+                    'data' => $peserta->pegawai,
                 ];
             }
 
-            if ($peserta->pegawai_id) {
-                $pKey = 'pegawai_' . $peserta->pegawai_id;
-                if (!in_array($pKey, $rawGroups[$activityKey]['participant_keys'])) {
-                    $rawGroups[$activityKey]['participant_keys'][] = $pKey;
-                    $rawGroups[$activityKey]['participants'][] = [
-                        'type'    => 'pegawai',
-                        'pegawai' => $peserta->pegawai ?? null,
-                        'siswa'   => [],
+            $siswa = $peserta->siswa ?? $peserta->pesertaSiswa ?? null;
+
+            if ($siswa) {
+                $entities[] = [
+                    'type' => 'siswa',
+                    'key'  => 'siswa_' . ($siswa->id ?? $peserta->siswa_id ?? 'unknown'),
+                    'data' => $siswa,
+                ];
+            } elseif (!empty($peserta->siswa_id)) {
+                $entities[] = [
+                    'type' => 'siswa',
+                    'key'  => 'siswa_' . $peserta->siswa_id,
+                    'data' => $peserta,
+                ];
+            }
+
+            if (empty($entities)) {
+                continue;
+            }
+
+            foreach ($entities as $entityItem) {
+                $groupKey = $entityItem['key'] . '_' . $awalRaw . '_' . $akhirRaw;
+
+                if (!isset($rawGroups[$groupKey])) {
+                    $rawGroups[$groupKey] = [
+                        'tanggal_formatted' => $formatTanggalRange($awalRaw, $akhirRaw),
+                        'type'              => $entityItem['type'],
+                        'entity'            => $entityItem['data'],
+                        'tempat_list'       => [],
                     ];
                 }
-            } elseif ($peserta->siswa_id && $peserta->siswa) {
-                $pKey = 'siswa_' . $peserta->siswa_id;
-                if (!in_array($pKey, $rawGroups[$activityKey]['participant_keys'])) {
-                    $rawGroups[$activityKey]['participant_keys'][] = $pKey;
-                    $rawGroups[$activityKey]['participants'][] = [
-                        'type'    => 'siswa_only',
-                        'pegawai' => null,
-                        'siswa'   => [[
-                            'nama'  => $peserta->siswa->nama ?? '-',
-                            'nis'   => $peserta->siswa->nis ?? '-',
-                            'kelas' => $peserta->siswa->kelas ?? '-',
-                        ]],
-                    ];
+
+                if ($tempat && !in_array($tempat, $rawGroups[$groupKey]['tempat_list'])) {
+                    $rawGroups[$groupKey]['tempat_list'][] = $tempat;
                 }
             }
         }
 
         $displayGroups = array_values($rawGroups);
 
-        /*
-         * Cek apakah ada siswa dalam semua kelompok.
-         */
         $hasSiswa = collect($displayGroups)
-            ->pluck('participants')
-            ->flatten()
-            ->contains(function ($p) {
-                return !empty($p['siswa']);
+            ->contains(function ($g) {
+                return $g['type'] === 'siswa';
             });
     @endphp
 
+    {{-- TABEL PESERTA --}}
     <table class="tabel-peserta">
         <thead>
             <tr>
@@ -537,85 +535,85 @@
                 <th style="width: 15%;">{{ $hasSiswa ? 'NIP / NIS' : 'NIP' }}</th>
                 <th style="width: 15%;">{{ $hasSiswa ? 'Pangkat / Gol / Kelas' : 'Pangkat / Gol' }}</th>
                 <th style="width: 14%;">Jabatan</th>
-                <th style="width: 14%;">Tanggal</th>
-                <th style="width: 17%;">Tempat Kegiatan</th>
+                <th style="width: 15%;">Tanggal Kegiatan</th>
+                <th style="width: 16%;">Tempat </th>
             </tr>
         </thead>
+        
         <tbody>
             @php $nomor = 1; @endphp
 
             @forelse($displayGroups as $group)
                 @php
-                    $participants = $group['participants'];
-                    $rowspan = count($participants);
-                    if ($rowspan === 0) $rowspan = 1;
+                    $entity = $group['entity'];
+                    $isPegawai = ($group['type'] === 'pegawai');
+                    $tempatList = $group['tempat_list'];
                 @endphp
 
-                @forelse($participants as $index => $p)
-                    <tr>
-                        <td class="text-center">{{ $nomor++ }}</td>
-                        <td>
-                            @if($p['type'] === 'pegawai' && $p['pegawai'])
-                                <div class="pegawai-nama">{{ $p['pegawai']->nama ?: '-' }}</div>
-                            @elseif(count($p['siswa']))
-                                <div class="label-siswa">Siswa:</div>
-                                <ol class="daftar-siswa">
-                                    @foreach($p['siswa'] as $itemSiswa)
-                                        <li>{{ strtoupper($itemSiswa['nama']) }}</li>
-                                    @endforeach
-                                </ol>
-                            @else
-                                -
-                            @endif
-                        </td>
-                        <td>
-                            @if($p['type'] === 'pegawai' && $p['pegawai'])
-                                <div>{{ $p['pegawai']->nip ?: '-' }}</div>
-                            @elseif(count($p['siswa']))
-                                <div class="label-nis">NIS:</div>
-                                @foreach($p['siswa'] as $itemSiswa)
-                                    <div class="siswa-item">{{ $itemSiswa['nis'] ?: '-' }}</div>
-                                @endforeach
-                            @else
-                                -
-                            @endif
-                        </td>
-                        <td>
-                            @if($p['type'] === 'pegawai' && $p['pegawai'])
-                                <div>{{ $p['pegawai']->pangkat_golongan ?: '-' }}</div>
-                            @elseif(count($p['siswa']))
-                                <div class="label-kelas">Kelas:</div>
-                                @foreach($p['siswa'] as $itemSiswa)
-                                    <div class="siswa-item">{{ $itemSiswa['kelas'] ?: '-' }}</div>
-                                @endforeach
-                            @else
-                                -
-                            @endif
-                        </td>
-                        <td>
-                            @if($p['type'] === 'pegawai' && $p['pegawai'])
-                                <div>{{ $p['pegawai']->jabatan ?: '-' }}</div>
-                            @elseif(count($p['siswa']))
-                                <div class="label-siswa">Siswa</div>
-                            @else
-                                -
-                            @endif
-                        </td>
-
-                        @if($index === 0)
-                            <td class="kegiatan-tanggal" rowspan="{{ $rowspan }}">
-                                {{ $group['tanggal_formatted'] ?: '-' }}
-                            </td>
-                            <td class="kegiatan-tempat" rowspan="{{ $rowspan }}">
-                                {{ $group['tempat'] ?: '-' }}
-                            </td>
+                <tr>
+                    <td class="text-center">{{ $nomor++ }}</td>
+                    
+                    {{-- Nama --}}
+                    <td>
+                        @if($isPegawai)
+                            <div class="pegawai-nama">{{ $entity->nama ?: '-' }}</div>
+                        @else
+                            <div class="label-siswa">Siswa:</div>
+                            <div>{{ strtoupper($entity->nama ?? '-') }}</div>
                         @endif
-                    </tr>
-                @empty
-                    <tr><td colspan="7" class="text-center">-</td></tr>
-                @endforelse
+                    </td>
+
+                    {{-- NIP / NIS --}}
+                    <td>
+                        @if($isPegawai)
+                            <div>{{ $entity->nip ?: '-' }}</div>
+                        @else
+                            <div class="label-nis">NIS:</div>
+                            <div>{{ $entity->nis ?? $entity->nisn ?? '-' }}</div>
+                        @endif
+                    </td>
+
+                    {{-- Pangkat / Golongan / Kelas --}}
+                    <td>
+                        @if($isPegawai)
+                            <div>{{ $entity->pangkat_golongan ?: '-' }}</div>
+                        @else
+                            <div class="label-kelas">Kelas:</div>
+                            <div>{{ $entity->kelas ?? '-' }}</div>
+                        @endif
+                    </td>
+
+                    {{-- Jabatan --}}
+                    <td>
+                        @if($isPegawai)
+                            <div>{{ $entity->jabatan ?: '-' }}</div>
+                        @else
+                            <div class="label-siswa">Siswa Peserta Didik</div>
+                        @endif
+                    </td>
+
+                    {{-- Tanggal Kegiatan --}}
+                    <td class="kegiatan-tanggal">
+                        {{ $group['tanggal_formatted'] ?: '-' }}
+                    </td>
+
+                    {{-- Tempat / Dudika --}}
+                    <td>
+                        @if(count($tempatList) > 1)
+                            <ol class="dudika-ol">
+                                @foreach($tempatList as $tpt)
+                                    <li>{{ $tpt }}</li>
+                                @endforeach
+                            </ol>
+                        @elseif(count($tempatList) === 1)
+                            {{ $tempatList[0] }}
+                        @else
+                            -
+                        @endif
+                    </td>
+                </tr>
             @empty
-                <tr><td colspan="7" class="text-center">Tidak ada data peserta.</td></tr>
+                <tr><td colspan="7" class="text-center">-</td></tr>
             @endforelse
         </tbody>
     </table>

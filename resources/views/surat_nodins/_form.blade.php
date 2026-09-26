@@ -3,18 +3,37 @@
 
     $pesertaIndex = 0;
 
-    $asns = $asns ?? [];
-    $siswas = $siswas ?? [];
+    $asns    = $asns    ?? [];
+    $siswas  = $siswas  ?? [];
     $dudikas = $dudikas ?? [];
-    $logos = $logos ?? [];
+    $logos   = $logos   ?? [];
 
     /*
     |--------------------------------------------------------------------------
-    | Fungsi untuk mendapatkan nilai array peserta lama
+    | Grouping peserta lama berdasarkan (tgl_awal, tgl_akhir)
     |--------------------------------------------------------------------------
     */
 
     $pesertaData = [];
+
+    /*
+     * Nama DUDIKA tidak boleh muncul pada field
+     * Tempat Kegiatan.
+     *
+     * Saat penyimpanan, nama DUDIKA ikut disimpan
+     * pada kolom tempat_kegiatan (SuratNodinController
+     * syncPeserta) dengan penanda dudika_id, sehingga
+     * saat form di edit, baris bertanda dudika_id
+     * harus dikecualikan dari daftar tempat.
+     */
+    $dudikaNameMap = [];
+
+    foreach ($dudikas as $dudika) {
+        $namaDudika = trim((string) ($dudika->nama_dudika ?? ''));
+        if ($namaDudika !== '') {
+            $dudikaNameMap[$namaDudika] = $dudika->id;
+        }
+    }
 
     if (isset($suratNodin) && $suratNodin->pesertaSuratUsulans->count() > 0) {
 
@@ -22,142 +41,127 @@
 
         foreach ($suratNodin->pesertaSuratUsulans as $peserta) {
 
-            $pegawaiKey = $peserta->pegawai_id ?? 'no-pegawai';
+            $tglAwal = $peserta->tgl_awal_kegiatan
+                ? \Carbon\Carbon::parse($peserta->tgl_awal_kegiatan)->format('Y-m-d')
+                : '';
 
-            $key =
-                $pegawaiKey . '|' .
-                ($peserta->siswa_id ?? '') . '|' .
-                ($peserta->tgl_awal_kegiatan ?? '') . '|' .
-                ($peserta->tgl_akhir_kegiatan ?? '');
+            $tglAkhir = $peserta->tgl_akhir_kegiatan
+                ? \Carbon\Carbon::parse($peserta->tgl_akhir_kegiatan)->format('Y-m-d')
+                : '';
+
+            $key = $tglAwal . '_' . $tglAkhir;
 
             if (!isset($groupedPeserta[$key])) {
-
                 $groupedPeserta[$key] = [
-                    'pegawai_ids' => [],
-                    'siswa_ids' => [],
-                    'tgl_awal' => $peserta->tgl_awal_kegiatan
-                        ? \Carbon\Carbon::parse($peserta->tgl_awal_kegiatan)->format('Y-m-d')
-                        : '',
-                    'tgl_akhir' => $peserta->tgl_akhir_kegiatan
-                        ? \Carbon\Carbon::parse($peserta->tgl_akhir_kegiatan)->format('Y-m-d')
-                        : '',
-                    'tempat_kegiatan' => [],
-                    'dudika_ids' => [],
+                    'pegawai_ids'      => [],
+                    'siswa_ids'        => [],
+                    'tgl_awal'         => $tglAwal,
+                    'tgl_akhir'        => $tglAkhir,
+                    'tempat_kegiatan'  => [],
+                    'dudika_ids'       => [],
                 ];
+            }
 
+            if ($peserta->pegawai_id
+                && !in_array($peserta->pegawai_id, $groupedPeserta[$key]['pegawai_ids'])) {
+                $groupedPeserta[$key]['pegawai_ids'][] = $peserta->pegawai_id;
+            }
+
+            if ($peserta->siswa_id
+                && !in_array($peserta->siswa_id, $groupedPeserta[$key]['siswa_ids'])) {
+                $groupedPeserta[$key]['siswa_ids'][] = $peserta->siswa_id;
             }
 
             /*
-            |--------------------------------------------------------------------------
-            | Pegawai
-            |--------------------------------------------------------------------------
-            */
+             * Tempat kegiatan.
+             *
+             * Nama DUDIKA tidak boleh muncul pada
+             * field ini.
+             *
+             * Data lama dapat menyimpan nama DUDIKA
+             * pada tempat_kegiatan tanpa dudika_id
+             * (bahkan beberapa nama dalam satu baris
+             * dipisahkan baris baru), sehingga setiap
+             * baris dicocokkan dengan daftar DUDIKA.
+             */
+            $tempatParts = preg_split(
+                '/\r\n|\r|\n/',
+                (string) ($peserta->tempat_kegiatan ?? '')
+            );
 
-            if (
-                $peserta->pegawai_id &&
-                !in_array(
-                    $peserta->pegawai_id,
-                    $groupedPeserta[$key]['pegawai_ids']
-                )
-            ) {
+            foreach ($tempatParts as $tempatPart) {
 
-                $groupedPeserta[$key]['pegawai_ids'][] =
-                    $peserta->pegawai_id;
+                $tempat = rtrim(trim($tempatPart), ', ');
 
-            }
+                if ($tempat === '') {
+                    continue;
+                }
 
+                $dudikaIdTempat = $dudikaNameMap[$tempat] ?? null;
 
-            /*
-            |--------------------------------------------------------------------------
-            | Siswa
-            |--------------------------------------------------------------------------
-            */
+                if ($dudikaIdTempat) {
 
-            if (
-                $peserta->siswa_id &&
-                !in_array(
-                    $peserta->siswa_id,
-                    $groupedPeserta[$key]['siswa_ids']
-                )
-            ) {
+                    if (!in_array(
+                        $dudikaIdTempat,
+                        $groupedPeserta[$key]['dudika_ids']
+                    )) {
+                        $groupedPeserta[$key]['dudika_ids'][] = $dudikaIdTempat;
+                    }
 
-                $groupedPeserta[$key]['siswa_ids'][] =
-                    $peserta->siswa_id;
+                    continue;
+                }
 
-            }
+                if ($peserta->dudika_id) {
+                    continue;
+                }
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | Tempat
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                $peserta->tempat_kegiatan &&
-                !in_array(
-                    $peserta->tempat_kegiatan,
+                if (!in_array(
+                    $tempat,
                     $groupedPeserta[$key]['tempat_kegiatan']
-                )
-            ) {
-
-                $groupedPeserta[$key]['tempat_kegiatan'][] =
-                    $peserta->tempat_kegiatan;
-
+                )) {
+                    $groupedPeserta[$key]['tempat_kegiatan'][] = $tempat;
+                }
             }
 
+            if ($peserta->dudika_id
+                && !in_array($peserta->dudika_id, $groupedPeserta[$key]['dudika_ids'])) {
+                $groupedPeserta[$key]['dudika_ids'][] = $peserta->dudika_id;
+            }
         }
 
         foreach ($groupedPeserta as &$group) {
-
             if (empty($group['tempat_kegiatan'])) {
                 $group['tempat_kegiatan'] = [''];
             }
-
         }
-
         unset($group);
 
         $pesertaData = array_values($groupedPeserta);
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Jika tidak ada peserta lama
-    |--------------------------------------------------------------------------
-    */
-
     if (empty($pesertaData)) {
-
-        $pesertaData = [
-            [
-                'pegawai_ids' => [],
-                'siswa_ids' => [],
-                'tgl_awal' => '',
-                'tgl_akhir' => '',
-                'tempat_kegiatan' => [''],
-                'dudika_id' => null,
-            ]
-        ];
-
+        $pesertaData = [[
+            'pegawai_ids'     => [],
+            'siswa_ids'       => [],
+            'tgl_awal'        => '',
+            'tgl_akhir'       => '',
+            'tempat_kegiatan' => [''],
+            'dudika_ids'      => [],
+        ]];
     }
-
 @endphp
 
 
 {{-- ========================================================= --}}
 {{-- CSS                                                       --}}
 {{-- ========================================================= --}}
-
 <style>
-
     .peserta-card {
-        background: white;
+        background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 14px;
         padding: 22px;
-        box-shadow: 0 2px 6px rgba(0,0,0,.05);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, .05);
     }
 
     .dark .peserta-card {
@@ -183,12 +187,13 @@
         height: 34px;
         border-radius: 50%;
         background: #2563eb;
-        color: white;
+        color: #ffffff;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
         margin-right: 10px;
+        flex-shrink: 0;
     }
 
     .form-label {
@@ -196,6 +201,7 @@
         font-size: 14px;
         font-weight: 600;
         margin-bottom: 7px;
+        color: inherit;
     }
 
     .form-help {
@@ -204,1684 +210,805 @@
         margin-top: 5px;
     }
 
-    .select2-container {
-        width: 100% !important;
+    .dark .form-help {
+        color: #9ca3af;
     }
 
-    .select2-container
-    .select2-selection--multiple {
-        min-height: 52px !important;
-        padding: 6px 8px !important;
-        border: 1px solid #d1d5db !important;
-        border-radius: 8px !important;
-    }
-
-    .select2-container
-    .select2-selection--multiple
-    .select2-selection__rendered {
-        display: flex !important;
-        flex-wrap: wrap;
-        gap: 4px;
-    }
-
-    .select2-container
-    .select2-search--inline
-    .select2-search__field {
-        min-height: 30px;
-        font-size: 14px;
+    /* =========================================================
+       TEMPAT KEGIATAN — input text satu baris + tombol X
+       ========================================================= */
+    .tempat-kegiatan-list {
+        display: block;
     }
 
     .tempat-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
+        display: flex !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
     }
 
-    .tempat-item textarea {
-        flex: 1;
-        min-height: 58px;
-        resize: vertical;
+    .tempat-item input[type="text"] {
+        flex: 1 1 auto !important;
+        display: block !important;
+        width: 100% !important;
+        height: 42px !important;
+        min-height: 42px !important;
+        max-height: 42px !important;
+        padding: 8px 12px !important;
+        line-height: 1.4 !important;
+        font-size: 14px !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+        box-sizing: border-box !important;
+        resize: none !important;
+        overflow: hidden !important;
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        outline: none !important;
     }
 
-    .tempat-remove {
-        flex-shrink: 0;
-        margin-top: 4px;
+    .tempat-item input[type="text"]:focus {
+        border-color: #2563eb !important;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, .25) !important;
+    }
+
+    .dark .tempat-item input[type="text"] {
+        background-color: #374151 !important;
+        border-color: #4b5563 !important;
+        color: #f3f4f6 !important;
+    }
+
+    .tempat-item .tempat-remove {
+        flex: 0 0 42px !important;
+        width: 42px !important;
+        height: 42px !important;
+        min-width: 42px !important;
+        min-height: 42px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        line-height: 1 !important;
+        font-size: 20px !important;
+        font-weight: bold !important;
+        color: #ffffff !important;
+        background-color: #ef4444 !important;
+        border: none !important;
+        border-radius: 8px !important;
+        cursor: pointer !important;
+        transition: background-color .15s ease;
+    }
+
+    .tempat-item .tempat-remove:hover {
+        background-color: #dc2626 !important;
+    }
+
+    /* =========================================================
+       SELECT2 — Pegawai / Siswa / DUDIKA
+       ========================================================= */
+    .select2-container {
+        width: 100% !important;
+        display: block !important;
+    }
+
+    .select2-container--default .select2-selection--multiple {
+        min-height: 42px !important;
+        padding: 4px 6px !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+        background: #ffffff !important;
+    }
+
+    .dark .select2-container--default .select2-selection--multiple {
+        background-color: #374151 !important;
+        border-color: #4b5563 !important;
+        color: #f3f4f6 !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+        padding: 2px !important;
+        list-style: none !important;
+        margin: 0 !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #2563eb !important;
+        border: none !important;
+        color: #ffffff !important;
+        padding: 3px 8px !important;
+        border-radius: 4px !important;
+        margin: 0 !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: #ffffff !important;
+        margin-right: 4px !important;
+        border: none !important;
+    }
+
+    .select2-container--default .select2-search--inline .select2-search__field {
+        margin-top: 6px !important;
+        font-size: 14px !important;
+        height: 26px !important;
+        border: none !important;
+        outline: none !important;
+        background: transparent !important;
+        color: inherit !important;
+    }
+
+    /* =========================================================
+       TAB
+       ========================================================= */
+    .tab-btn {
+        transition: background-color .15s ease, color .15s ease;
+    }
+
+    .tab-btn.is-active {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
     }
 
     @media (max-width: 768px) {
-
         .peserta-card {
             padding: 15px;
         }
-
     }
-
 </style>
 
 
 {{-- ========================================================= --}}
-{{-- TAB NAVIGATION                                            --}}
+{{-- FORM TABS                                                 --}}
 {{-- ========================================================= --}}
-
 <div id="form-tabs">
 
     <div class="sticky top-0 z-20 -mx-6 px-6 py-2 mb-6
                 bg-white/90 dark:bg-gray-800/90
                 backdrop-blur border-b dark:border-gray-700">
-
-        <nav class="flex flex-wrap gap-2">
-
-            <button
-                type="button"
-                data-tab="data-umum"
-                onclick="switchTab('data-umum')"
-                class="tab-btn px-4 py-2 rounded-full font-medium
-                       bg-blue-600 text-white">
-
-                Data Umum
-
-            </button>
-
-
-            <button
-                type="button"
-                data-tab="isi-surat"
-                onclick="switchTab('isi-surat')"
-                class="tab-btn px-4 py-2 rounded-full font-medium
-                       text-gray-600 hover:bg-gray-100">
-
-                Isi Surat
-
-            </button>
-
-
-            <button
-                type="button"
-                data-tab="peserta"
-                onclick="switchTab('peserta')"
-                class="tab-btn px-4 py-2 rounded-full font-medium
-                       text-gray-600 hover:bg-gray-100">
-
-                Peserta
-
-            </button>
-
-
-            <button
-                type="button"
-                data-tab="penandatangan"
-                onclick="switchTab('penandatangan')"
-                class="tab-btn px-4 py-2 rounded-full font-medium
-                       text-gray-600 hover:bg-gray-100">
-
-                Penandatangan
-
-            </button>
-
+        <nav id="tab-nav" class="flex flex-wrap gap-2">
+            <button type="button" data-tab="data-umum"     class="tab-btn is-active px-4 py-2 rounded-full font-medium">Data Umum</button>
+            <button type="button" data-tab="isi-surat"     class="tab-btn px-4 py-2 rounded-full font-medium text-gray-600 hover:bg-gray-100">Isi Surat</button>
+            <button type="button" data-tab="peserta"       class="tab-btn px-4 py-2 rounded-full font-medium text-gray-600 hover:bg-gray-100">Peserta</button>
+            <button type="button" data-tab="penandatangan" class="tab-btn px-4 py-2 rounded-full font-medium text-gray-600 hover:bg-gray-100">Penandatangan</button>
         </nav>
-
     </div>
 
 
     {{-- ===================================================== --}}
     {{-- DATA UMUM                                            --}}
     {{-- ===================================================== --}}
-
-    <div
-        id="tab-data-umum"
-        class="tab-content grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div id="tab-data-umum" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-6">
 
         <div class="md:col-span-2">
-
-            <h2 class="text-lg font-semibold mb-4 border-b pb-2">
-                Data Umum
-            </h2>
-
+            <h2 class="text-lg font-semibold mb-4 border-b pb-2">Data Umum</h2>
         </div>
-
 
         <div>
-
-            <label class="form-label">
-                Nomor
-            </label>
-
-            <input
-                type="text"
-                name="nomor"
-                value="{{ old('nomor', $suratNodin->nomor ?? '................................................................') }}"
-                class="w-full border rounded-lg px-3 py-2">
-
+            <label class="form-label">Nomor</label>
+            <input type="text" name="nomor"
+                   value="{{ old('nomor', $suratNodin->nomor ?? '................................................................') }}"
+                   class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
         </div>
-
 
         <div>
-
-            <label class="form-label">
-                Sifat
-            </label>
-
-            <input
-                type="text"
-                name="sifat"
-                value="{{ old('sifat', $suratNodin->sifat ?? 'Penting') }}"
-                class="w-full border rounded-lg px-3 py-2">
-
+            <label class="form-label">Sifat</label>
+            <input type="text" name="sifat"
+                   value="{{ old('sifat', $suratNodin->sifat ?? 'Penting') }}"
+                   class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
         </div>
-
 
         <div>
-
-            <label class="form-label">
-                Lampiran
-            </label>
-
-            <input
-                type="text"
-                name="lampiran"
-                value="{{ old('lampiran', $suratNodin->lampiran ?? '1 (satu) berkas') }}"
-                class="w-full border rounded-lg px-3 py-2">
-
+            <label class="form-label">Lampiran</label>
+            <input type="text" name="lampiran"
+                   value="{{ old('lampiran', $suratNodin->lampiran ?? '1 (satu) berkas') }}"
+                   class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
         </div>
-
 
         <div>
-
-            <label class="form-label">
-                Hal
-            </label>
-
-            <input
-                type="text"
-                name="hal"
-                value="{{ old('hal', $suratNodin->hal ?? 'Permohonan Izin Perjalanan Dinas') }}"
-                class="w-full border rounded-lg px-3 py-2">
-
+            <label class="form-label">Hal</label>
+            <input type="text" name="hal"
+                   value="{{ old('hal', $suratNodin->hal ?? 'Permohonan Izin Perjalanan Dinas') }}"
+                   class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
         </div>
-
 
         <div class="md:col-span-2">
-
-            <label class="form-label">
-                Yth.
-            </label>
-
-            <input
-                type="text"
-                name="kepada"
-                value="{{ old('kepada', $suratNodin->kepada ?? 'Yth. Gubernur Kepulauan Bangka Belitung') }}"
-                class="w-full border rounded-lg px-3 py-2">
-
+            <label class="form-label">Yth.</label>
+            <input type="text" name="kepada"
+                   value="{{ old('kepada', $suratNodin->kepada ?? 'Yth. Gubernur Kepulauan Bangka Belitung') }}"
+                   class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
         </div>
 
-
         <div class="md:col-span-2">
-
-            <label class="form-label">
-                Dari
-            </label>
-
-            <select
-                name="dari"
-                id="select-dari"
-                class="w-full border rounded-lg px-3 py-2">
-
-                <option value="">
-                    -- Pilih Dari --
-                </option>
-
-                <option
-                    value="Kepala Dinas Pendidikan Provinsi Kepulauan Bangka Belitung"
-                    {{ old('dari', $suratNodin->dari ?? '') ==
-                       'Kepala Dinas Pendidikan Provinsi Kepulauan Bangka Belitung'
-                       ? 'selected' : '' }}>
-
+            <label class="form-label">Dari</label>
+            <select name="dari" id="select-dari"
+                    class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="">-- Pilih Dari --</option>
+                <option value="Kepala Dinas Pendidikan Provinsi Kepulauan Bangka Belitung"
+                    {{ old('dari', $suratNodin->dari ?? '') == 'Kepala Dinas Pendidikan Provinsi Kepulauan Bangka Belitung' ? 'selected' : '' }}>
                     Kepala Dinas Pendidikan Provinsi Kepulauan Bangka Belitung
-
                 </option>
-
-                <option
-                    value="Kepala SMK Negeri 1 Koba"
-                    {{ old('dari', $suratNodin->dari ?? '') ==
-                       'Kepala SMK Negeri 1 Koba'
-                       ? 'selected' : '' }}>
-
+                <option value="Kepala SMK Negeri 1 Koba"
+                    {{ old('dari', $suratNodin->dari ?? '') == 'Kepala SMK Negeri 1 Koba' ? 'selected' : '' }}>
                     Kepala SMK Negeri 1 Koba
-
                 </option>
-
             </select>
 
-
             <div class="mt-3">
-
                 <label class="inline-flex items-center">
-
-                    <input
-                        type="hidden"
-                        name="dari_plt"
-                        value="0">
-
-                    <input
-                        type="checkbox"
-                        name="dari_plt"
-                        value="1"
-                        {{ old('dari_plt', $suratNodin->dari_plt ?? false)
-                           ? 'checked' : '' }}>
-
-                    <span class="ml-2 text-sm">
-                        Plt pada pengirim
-                    </span>
-
+                    <input type="hidden" name="dari_plt" value="0">
+                    <input type="checkbox" name="dari_plt" value="1"
+                        {{ old('dari_plt', $suratNodin->dari_plt ?? false) ? 'checked' : '' }}>
+                    <span class="ml-2 text-sm">Plt pada pengirim</span>
                 </label>
-
 
                 <label class="inline-flex items-center ml-6">
-
-                    <input
-                        type="checkbox"
-                        name="dari_an"
-                        value="1"
-                        {{ old('dari_an', $suratNodin->dari_an ?? false)
-                           ? 'checked' : '' }}>
-
-                    <span class="ml-2 text-sm">
-                        a.n (Atas Nama)
-                    </span>
-
+                    <input type="checkbox" name="dari_an" value="1"
+                        {{ old('dari_an', $suratNodin->dari_an ?? false) ? 'checked' : '' }}>
+                    <span class="ml-2 text-sm">a.n (Atas Nama)</span>
                 </label>
-
             </div>
-
         </div>
-
 
         <div>
-
-            <label class="form-label">
-                Tanggal
-            </label>
-
-            <input
-                type="date"
-                name="tanggal"
-                value="{{ old(
-                    'tanggal',
-                    optional($suratNodin->tanggal ?? null)->format('Y-m-d')
-                ) }}"
-                class="w-full border rounded-lg px-3 py-2">
-
+            <label class="form-label">Tanggal</label>
+            <input type="date" name="tanggal"
+                   value="{{ old('tanggal', optional($suratNodin->tanggal ?? null)->format('Y-m-d')) }}"
+                   class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
         </div>
-
     </div>
 
 
     {{-- ===================================================== --}}
     {{-- ISI SURAT                                            --}}
     {{-- ===================================================== --}}
-
-    <div
-        id="tab-isi-surat"
-        class="tab-content hidden grid grid-cols-1 gap-6">
+    <div id="tab-isi-surat" class="tab-content hidden grid grid-cols-1 gap-6">
 
         <div>
-
-            <h2 class="text-lg font-semibold mb-4 border-b pb-2">
-                Isi Surat
-            </h2>
-
+            <h2 class="text-lg font-semibold mb-4 border-b pb-2">Isi Surat</h2>
         </div>
-
 
         <div>
-
-            <label class="form-label">
-                Dasar Surat
-            </label>
-
-            <textarea
-                name="dasar_surat"
-                rows="5"
-                class="w-full border rounded-lg px-3 py-2">{{ old(
-                    'dasar_surat',
-                    $suratNodin->dasar_surat ?? ''
-                ) }}</textarea>
-
+            <label class="form-label">Dasar Surat</label>
+            <textarea name="dasar_surat" rows="5"
+                      class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ old('dasar_surat', $suratNodin->dasar_surat ?? '') }}</textarea>
         </div>
-
 
         <div>
-
-            <label class="form-label">
-                Isi Surat
-            </label>
-
-            <textarea
-                name="isi_surat"
-                rows="7"
-                class="w-full border rounded-lg px-3 py-2">{{ old(
-                    'isi_surat',
-                    $suratNodin->isi_surat ?? ''
-                ) }}</textarea>
-
+            <label class="form-label">Isi Surat</label>
+            <textarea name="isi_surat" rows="7"
+                      class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ old('isi_surat', $suratNodin->isi_surat ?? '') }}</textarea>
         </div>
-
     </div>
 
 
     {{-- ===================================================== --}}
     {{-- PESERTA                                               --}}
     {{-- ===================================================== --}}
-
-    <div
-        id="tab-peserta"
-        class="tab-content hidden">
-
-        {{-- KOP SURAT --}}
+    <div id="tab-peserta" class="tab-content hidden">
 
         <div class="mb-7">
-
-            <label class="form-label">
-                Kop Surat
-            </label>
-
-            <select
-                name="kop_surat"
-                id="select-kop"
-                class="w-full border rounded-lg px-3 py-3">
-
-                <option value="">
-                    -- Pilih Kop Surat --
-                </option>
-
+            <label class="form-label">Kop Surat</label>
+            <select name="kop_surat" id="select-kop"
+                    class="w-full border rounded-lg px-3 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="">-- Pilih Kop Surat --</option>
                 @foreach($logos as $logo)
-
-                    <option
-                        value="{{ $logo->name }}"
-                        {{ old(
-                            'kop_surat',
-                            $suratNodin->kop_surat ?? ''
-                        ) == $logo->name ? 'selected' : '' }}>
-
+                    <option value="{{ $logo->name }}"
+                        {{ old('kop_surat', $suratNodin->kop_surat ?? '') == $logo->name ? 'selected' : '' }}>
                         {{ $logo->name ?: 'Tanpa Nama' }}
-
                     </option>
-
                 @endforeach
-
             </select>
-
         </div>
 
-
-        {{-- HEADER PESERTA --}}
-
-        <div class="flex flex-col sm:flex-row
-                    sm:items-center sm:justify-between
-                    gap-3 mb-5">
-
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
             <div>
-
-                <h2 class="text-xl font-bold">
-                    Daftar Peserta
-                </h2>
-
+                <h2 class="text-xl font-bold">Daftar Peserta</h2>
                 <p class="text-sm text-gray-500 mt-1">
                     Satu kelompok dapat terdiri dari banyak pegawai,
                     banyak siswa, dan banyak tempat kegiatan.
                 </p>
-
             </div>
 
-
-            <button
-                type="button"
-                id="tambah-peserta"
-                class="bg-blue-600 hover:bg-blue-700
-                       text-white font-semibold
-                       px-5 py-2.5 rounded-lg shadow">
-
+            <button type="button" id="tambah-peserta"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg shadow">
                 + Tambah Peserta
-
             </button>
-
         </div>
 
-
-        {{-- DAFTAR KARTU --}}
-
-        <div
-            id="peserta-list"
-            class="space-y-5">
-
+        <div id="peserta-list" class="space-y-5">
             @foreach($pesertaData as $group)
-
                 @php
-
-                    $currentIndex = $pesertaIndex++;
-
-                    $selectedPegawai =
-                        $group['pegawai_ids'] ?? [];
-
-                    $selectedSiswa =
-                        $group['siswa_ids'] ?? [];
-
-                    $selectedDudika =
-                        $group['dudika_id'] ?? null;
-
-                    $tempatList =
-                        $group['tempat_kegiatan'] ?? [''];
-
-                    if (empty($tempatList)) {
-                        $tempatList = [''];
-                    }
-
+                    $currentIndex      = $pesertaIndex++;
+                    $selectedPegawai   = $group['pegawai_ids']     ?? [];
+                    $selectedSiswa     = $group['siswa_ids']       ?? [];
+                    $selectedDudikaIds = $group['dudika_ids']      ?? [];
+                    $tempatList        = $group['tempat_kegiatan'] ?? [''];
+                    if (empty($tempatList)) { $tempatList = ['']; }
                 @endphp
 
-
-                <div
-                    class="peserta-card"
-                    data-index="{{ $currentIndex }}">
-
-
-                    {{-- HEADER KARTU --}}
+                <div class="peserta-card" data-index="{{ $currentIndex }}">
 
                     <div class="peserta-card-header">
-
                         <div class="flex items-center">
-
-                            <span class="peserta-number">
-                                {{ $currentIndex + 1 }}
-                            </span>
-
+                            <span class="peserta-number">{{ $currentIndex + 1 }}</span>
                             <div>
-
-                                <div class="font-bold text-base">
-                                    Peserta / Kelompok
-                                </div>
-
-                                <div class="text-xs text-gray-500">
-                                    Pilih pegawai, siswa, tanggal dan tempat
-                                </div>
-
+                                <div class="font-bold text-base">Peserta / Kelompok</div>
+                                <div class="text-xs text-gray-500">Pilih pegawai, siswa, tanggal dan tempat</div>
                             </div>
-
                         </div>
-
-
-                        <button
-                            type="button"
-                            class="hapus-peserta
-                                   bg-red-500 hover:bg-red-600
-                                   text-white px-3 py-2
-                                   rounded-lg text-sm">
-
+                        <button type="button"
+                                class="hapus-peserta bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm">
                             Hapus
-
                         </button>
-
                     </div>
 
-
-                    {{-- PEGAWAI + SISWA --}}
-
-                    <div
-                        class="grid grid-cols-1 xl:grid-cols-2
-                               gap-6">
-
-
-                        {{-- PEGAWAI --}}
-
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                         <div>
-
-                            <label class="form-label">
-                                Pegawai yang Ikut
-                            </label>
-
-                            <select
-                                name="peserta[{{ $currentIndex }}][pegawai_id][]"
-                                multiple
-                                class="pegawai-select2">
-
+                            <label class="form-label">Pegawai yang Ikut</label>
+                            <select name="peserta[{{ $currentIndex }}][pegawai_id][]" multiple class="pegawai-select2">
                                 @foreach($asns as $asn)
-
-                                    <option
-                                        value="{{ $asn->id }}"
-                                        {{ in_array(
-                                            $asn->id,
-                                            $selectedPegawai
-                                        ) ? 'selected' : '' }}>
-
-                                        {{ $asn->nama }}
-
-                                        @if($asn->nip)
-                                            ({{ $asn->nip }})
-                                        @endif
-
+                                    <option value="{{ $asn->id }}"
+                                        {{ in_array($asn->id, $selectedPegawai) ? 'selected' : '' }}>
+                                        {{ $asn->nama }}@if($asn->nip) ({{ $asn->nip }})@endif
                                     </option>
-
                                 @endforeach
-
                             </select>
-
-                            <div class="form-help">
-                                Ketik nama untuk mencari.
-                                Dapat memilih beberapa pegawai.
-                            </div>
-
+                            <div class="form-help">Ketik nama untuk mencari. Dapat memilih beberapa pegawai.</div>
                         </div>
 
-
-                        {{-- SISWA --}}
-
                         <div>
-
-                            <label class="form-label">
-                                Siswa yang Ikut
-                            </label>
-
-                            <select
-                                name="peserta[{{ $currentIndex }}][siswa_id][]"
-                                multiple
-                                class="siswa-select2">
-
+                            <label class="form-label">Siswa yang Ikut</label>
+                            <select name="peserta[{{ $currentIndex }}][siswa_id][]" multiple class="siswa-select2">
                                 @foreach($siswas as $siswa)
-
-                                    <option
-                                        value="{{ $siswa->id }}"
-                                        {{ in_array(
-                                            $siswa->id,
-                                            $selectedSiswa
-                                        ) ? 'selected' : '' }}>
-
+                                    <option value="{{ $siswa->id }}"
+                                        {{ in_array($siswa->id, $selectedSiswa) ? 'selected' : '' }}>
                                         {{ $siswa->nama }}
-
                                     </option>
-
                                 @endforeach
-
                             </select>
-
-                            <div class="form-help">
-                                Ketik nama untuk mencari.
-                                Dapat memilih beberapa siswa.
-                            </div>
-
+                            <div class="form-help">Ketik nama untuk mencari. Dapat memilih beberapa siswa.</div>
                         </div>
-
                     </div>
 
-
-                    {{-- TANGGAL --}}
-
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-2
-                               gap-6 mt-6">
-
-
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                         <div>
-
-                            <label class="form-label">
-                                Tanggal Mulai Kegiatan
-                            </label>
-
-                            <input
-                                type="date"
-                                name="peserta[{{ $currentIndex }}][tgl_awal_kegiatan]"
-                                value="{{ $group['tgl_awal'] ?? '' }}"
-                                class="w-full border rounded-lg
-                                       px-4 py-3">
-
+                            <label class="form-label">Tanggal Mulai Kegiatan</label>
+                            <input type="date"
+                                   name="peserta[{{ $currentIndex }}][tgl_awal_kegiatan]"
+                                   value="{{ $group['tgl_awal'] ?? '' }}"
+                                   class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         </div>
-
-
                         <div>
-
-                            <label class="form-label">
-                                Tanggal Selesai Kegiatan
-                            </label>
-
-                            <input
-                                type="date"
-                                name="peserta[{{ $currentIndex }}][tgl_akhir_kegiatan]"
-                                value="{{ $group['tgl_akhir'] ?? '' }}"
-                                class="w-full border rounded-lg
-                                       px-4 py-3">
-
+                            <label class="form-label">Tanggal Selesai Kegiatan</label>
+                            <input type="date"
+                                   name="peserta[{{ $currentIndex }}][tgl_akhir_kegiatan]"
+                                   value="{{ $group['tgl_akhir'] ?? '' }}"
+                                   class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         </div>
-
                     </div>
-
-
-                    {{-- DUDIKA --}}
 
                     <div class="mt-6">
-
-                        <label class="form-label">
-                            DUDIKA <span class="text-gray-400">(opsional)</span>
-                        </label>
-
-                        <select
-                            name="peserta[{{ $currentIndex }}][dudika_id]"
-                            class="w-full border rounded-lg px-3 py-2
-                                   dark:bg-gray-700 dark:text-gray-100">
-
-                            <option value="">
-                                -- Pilih DUDIKA --
-                            </option>
-
+                        <label class="form-label">DUDIKA <span class="text-gray-400">(opsional)</span></label>
+                        <select name="peserta[{{ $currentIndex }}][dudika_id][]" multiple
+                                class="dudika-select2 w-full">
                             @foreach($dudikas as $dudika)
-
-                                <option
-                                    value="{{ $dudika->id }}"
-                                    {{ ($selectedDudika ?? null) == $dudika->id ? 'selected' : '' }}>
-
+                                <option value="{{ $dudika->id }}"
+                                    {{ in_array($dudika->id, $selectedDudikaIds) ? 'selected' : '' }}>
                                     {{ $dudika->nama_dudika }}
-
                                 </option>
-
                             @endforeach
-
                         </select>
-
-                        <div class="form-help">
-                            Jika dipilih, nama DUDIKA akan
-                            ditampilkan pada kolom Tempat Kegiatan.
-                        </div>
-
+                        <div class="form-help">Ketik nama DUDIKA untuk mencari. Dapat memilih beberapa DUDIKA.</div>
                     </div>
 
-
-                    {{-- TEMPAT --}}
-
                     <div class="mt-6">
-
-                        <div
-                            class="flex flex-col sm:flex-row
-                                   sm:items-center
-                                   sm:justify-between
-                                   gap-2 mb-3">
-
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                             <div>
-
-                                <label class="form-label mb-0">
-                                    Tempat Kegiatan
-                                </label>
-
-                                <div class="form-help">
-                                    Satu kelompok dapat memiliki
-                                    beberapa tempat kegiatan.
-                                </div>
-
+                                <label class="form-label mb-0">Tempat Kegiatan</label>
+                                <div class="form-help">Satu kelompok dapat memiliki beberapa tempat kegiatan.</div>
                             </div>
-
-
-                            <button
-                                type="button"
-                                class="tambah-tempat
-                                       bg-green-600 hover:bg-green-700
-                                       text-white text-sm font-semibold
-                                       px-4 py-2 rounded-lg">
-
+                            <button type="button"
+                                    class="tambah-tempat bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">
                                 + Tambah Tempat
-
                             </button>
-
                         </div>
 
-
-                        <div
-                            class="tempat-kegiatan-list space-y-3">
-
+                        <div class="tempat-kegiatan-list space-y-3">
                             @foreach($tempatList as $tempat)
-
                                 <div class="tempat-item">
-
-                                    <textarea
-                                        name="peserta[{{ $currentIndex }}][tempat_kegiatan][]"
-                                        rows="2"
-                                        placeholder="Masukkan tempat kegiatan..."
-                                        class="w-full border rounded-lg
-                                               px-4 py-2.5
-                                               focus:ring-2
-                                               focus:ring-blue-500">{{ trim($tempat) }}</textarea>
-
-
-                                    <button
-                                        type="button"
-                                        class="hapus-tempat
-                                               tempat-remove
-                                               bg-red-500
-                                               hover:bg-red-600
-                                               text-white px-3 py-2
-                                               rounded-lg">
-
-                                        ×
-
-                                    </button>
-
+                                    <input type="text"
+                                           name="peserta[{{ $currentIndex }}][tempat_kegiatan][]"
+                                           value="{{ trim($tempat) }}"
+                                           placeholder="Masukkan tempat kegiatan...">
+                                    <button type="button"
+                                            class="hapus-tempat tempat-remove"
+                                            title="Hapus tempat">×</button>
                                 </div>
-
                             @endforeach
-
                         </div>
-
                     </div>
 
                 </div>
-
             @endforeach
-
         </div>
-
     </div>
 
 
     {{-- ===================================================== --}}
     {{-- TEMPLATE PESERTA BARU                                 --}}
     {{-- ===================================================== --}}
-
     <div id="peserta-template" class="hidden">
-
-        <div
-            class="peserta-card"
-            data-index="__INDEX__">
-
+        <div class="peserta-card" data-index="__INDEX__">
 
             <div class="peserta-card-header">
-
                 <div class="flex items-center">
-
-                    <span class="peserta-number">
-                        #
-                    </span>
-
+                    <span class="peserta-number">#</span>
                     <div>
-
-                        <div class="font-bold">
-                            Peserta / Kelompok
-                        </div>
-
-                        <div class="text-xs text-gray-500">
-                            Peserta baru
-                        </div>
-
+                        <div class="font-bold">Peserta / Kelompok</div>
+                        <div class="text-xs text-gray-500">Peserta baru</div>
                     </div>
-
                 </div>
-
-
-                <button
-                    type="button"
-                    class="hapus-peserta
-                           bg-red-500 hover:bg-red-600
-                           text-white px-3 py-2 rounded-lg text-sm">
-
+                <button type="button"
+                        class="hapus-peserta bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm">
                     Hapus
-
                 </button>
-
             </div>
 
-
-            <div
-                class="grid grid-cols-1 xl:grid-cols-2
-                       gap-6">
-
-
-                {{-- PEGAWAI --}}
-
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div>
-
-                    <label class="form-label">
-                        Pegawai yang Ikut
-                    </label>
-
-                    <select
-                        name="peserta[__INDEX__][pegawai_id][]"
-                        multiple
-                        class="pegawai-select2">
-
+                    <label class="form-label">Pegawai yang Ikut</label>
+                    <select name="peserta[__INDEX__][pegawai_id][]" multiple class="pegawai-select2">
                         @foreach($asns as $asn)
-
                             <option value="{{ $asn->id }}">
-
-                                {{ $asn->nama }}
-
-                                @if($asn->nip)
-                                    ({{ $asn->nip }})
-                                @endif
-
+                                {{ $asn->nama }}@if($asn->nip) ({{ $asn->nip }})@endif
                             </option>
-
                         @endforeach
-
                     </select>
-
-                    <div class="form-help">
-                        Bisa memilih beberapa pegawai.
-                    </div>
-
+                    <div class="form-help">Bisa memilih beberapa pegawai.</div>
                 </div>
 
-
-                {{-- SISWA --}}
-
                 <div>
-
-                    <label class="form-label">
-                        Siswa yang Ikut
-                    </label>
-
-                    <select
-                        name="peserta[__INDEX__][siswa_id][]"
-                        multiple
-                        class="siswa-select2">
-
+                    <label class="form-label">Siswa yang Ikut</label>
+                    <select name="peserta[__INDEX__][siswa_id][]" multiple class="siswa-select2">
                         @foreach($siswas as $siswa)
-
-                            <option value="{{ $siswa->id }}">
-                                {{ $siswa->nama }}
-                            </option>
-
+                            <option value="{{ $siswa->id }}">{{ $siswa->nama }}</option>
                         @endforeach
-
                     </select>
-
-                    <div class="form-help">
-                        Bisa memilih beberapa siswa.
-                    </div>
-
+                    <div class="form-help">Bisa memilih beberapa siswa.</div>
                 </div>
-
             </div>
 
-
-            {{-- TANGGAL --}}
-
-            <div
-                class="grid grid-cols-1 md:grid-cols-2
-                       gap-6 mt-6">
-
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 <div>
-
-                    <label class="form-label">
-                        Tanggal Mulai Kegiatan
-                    </label>
-
-                    <input
-                        type="date"
-                        name="peserta[__INDEX__][tgl_awal_kegiatan]"
-                        class="w-full border rounded-lg
-                               px-4 py-3">
-
+                    <label class="form-label">Tanggal Mulai Kegiatan</label>
+                    <input type="date" name="peserta[__INDEX__][tgl_awal_kegiatan]"
+                           class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 </div>
-
-
                 <div>
-
-                    <label class="form-label">
-                        Tanggal Selesai Kegiatan
-                    </label>
-
-                    <input
-                        type="date"
-                        name="peserta[__INDEX__][tgl_akhir_kegiatan]"
-                        class="w-full border rounded-lg
-                               px-4 py-3">
-
+                    <label class="form-label">Tanggal Selesai Kegiatan</label>
+                    <input type="date" name="peserta[__INDEX__][tgl_akhir_kegiatan]"
+                           class="w-full border rounded-lg px-4 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 </div>
-
             </div>
-
-
-            {{-- DUDIKA --}}
 
             <div class="mt-6">
-
-                <label class="form-label">
-                    DUDIKA <span class="text-gray-400">(opsional)</span>
-                </label>
-
-                <select
-                    name="peserta[__INDEX__][dudika_id]"
-                    class="w-full border rounded-lg px-3 py-2
-                           dark:bg-gray-700 dark:text-gray-100">
-
-                    <option value="">
-                        -- Pilih DUDIKA --
-                    </option>
-
+                <label class="form-label">DUDIKA <span class="text-gray-400">(opsional)</span></label>
+                <select name="peserta[__INDEX__][dudika_id][]" multiple class="dudika-select2 w-full">
                     @foreach($dudikas as $dudika)
-
-                        <option
-                            value="{{ $dudika->id }}"
-                            {{ ($selectedDudika ?? null) == $dudika->id ? 'selected' : '' }}>
-
-                            {{ $dudika->nama_dudika }}
-
-                        </option>
-
+                        <option value="{{ $dudika->id }}">{{ $dudika->nama_dudika }}</option>
                     @endforeach
-
                 </select>
-
-                <div class="form-help">
-                    Jika dipilih, nama DUDIKA akan
-                    ditampilkan pada kolom Tempat Kegiatan.
-                </div>
-
+                <div class="form-help">Ketik nama DUDIKA untuk mencari. Dapat memilih beberapa DUDIKA.</div>
             </div>
 
-
-            {{-- TEMPAT --}}
-
             <div class="mt-6">
-
-                <div
-                    class="flex flex-col sm:flex-row
-                           sm:items-center
-                           sm:justify-between
-                           gap-2 mb-3">
-
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                     <div>
-
-                        <label class="form-label mb-0">
-                            Tempat Kegiatan
-                        </label>
-
-                        <div class="form-help">
-                            Dapat menambahkan banyak tempat.
-                        </div>
-
+                        <label class="form-label mb-0">Tempat Kegiatan</label>
+                        <div class="form-help">Dapat menambahkan banyak tempat.</div>
                     </div>
-
-
-                    <button
-                        type="button"
-                        class="tambah-tempat
-                               bg-green-600 hover:bg-green-700
-                               text-white text-sm font-semibold
-                               px-4 py-2 rounded-lg">
-
+                    <button type="button"
+                            class="tambah-tempat bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">
                         + Tambah Tempat
-
                     </button>
-
                 </div>
 
-
-                <div
-                    class="tempat-kegiatan-list space-y-3">
-
+                <div class="tempat-kegiatan-list space-y-3">
                     <div class="tempat-item">
-
-                        <textarea
-                            name="peserta[__INDEX__][tempat_kegiatan][]"
-                            rows="2"
-                            placeholder="Masukkan tempat kegiatan..."
-                            class="w-full border rounded-lg
-                                   px-4 py-2.5
-                                   focus:ring-2
-                                   focus:ring-blue-500"></textarea>
-
-
-                        <button
-                            type="button"
-                            class="hapus-tempat
-                                   tempat-remove
-                                   bg-red-500 hover:bg-red-600
-                                   text-white px-3 py-2
-                                   rounded-lg">
-
-                            ×
-
-                        </button>
-
+                        <input type="text"
+                               name="peserta[__INDEX__][tempat_kegiatan][]"
+                               placeholder="Masukkan tempat kegiatan...">
+                        <button type="button"
+                                class="hapus-tempat tempat-remove"
+                                title="Hapus tempat">×</button>
                     </div>
-
                 </div>
-
             </div>
 
         </div>
-
     </div>
 
 
     {{-- ===================================================== --}}
     {{-- PENANDATANGAN                                         --}}
     {{-- ===================================================== --}}
-
-    <div
-        id="tab-penandatangan"
-        class="tab-content hidden grid
-               grid-cols-1 gap-6">
+    <div id="tab-penandatangan" class="tab-content hidden grid grid-cols-1 gap-6">
 
         <div>
-
-            <h2 class="text-lg font-semibold mb-4 border-b pb-2">
-                Penandatangan
-            </h2>
-
+            <h2 class="text-lg font-semibold mb-4 border-b pb-2">Penandatangan</h2>
         </div>
 
-
         <div>
-
-            <label class="form-label">
-                Pilih Penandatangan
-            </label>
-
-            <select
-                name="penandatangan_id"
-                class="w-full border rounded-lg px-3 py-3">
-
-                <option value="">
-                    -- Pilih Penandatangan --
-                </option>
-
+            <label class="form-label">Pilih Penandatangan</label>
+            <select name="penandatangan_id"
+                    class="w-full border rounded-lg px-3 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="">-- Pilih Penandatangan --</option>
                 @foreach($asns as $asn)
-
-                    <option
-                        value="{{ $asn->id }}"
-                        {{ old(
-                            'penandatangan_id',
-                            $suratNodin->penandatangan_id
-                            ?? $defaultPenandatanganId
-                            ?? ''
-                        ) == $asn->id
-                        ? 'selected'
-                        : '' }}>
-
-                        {{ $asn->nama }}
-
-                        @if($asn->nip)
-                            ({{ $asn->nip }})
-                        @endif
-
+                    <option value="{{ $asn->id }}"
+                        {{ old('penandatangan_id', $suratNodin->penandatangan_id ?? $defaultPenandatanganId ?? '') == $asn->id ? 'selected' : '' }}>
+                        {{ $asn->nama }}@if($asn->nip) ({{ $asn->nip }})@endif
                     </option>
-
                 @endforeach
-
             </select>
-
 
             <div class="mt-3">
-
                 <label class="inline-flex items-center">
-
-                    <input
-                        type="hidden"
-                        name="penandatangan_plt"
-                        value="0">
-
-                    <input
-                        type="checkbox"
-                        name="penandatangan_plt"
-                        value="1"
-                        {{ old(
-                            'penandatangan_plt',
-                            $suratNodin->penandatangan_plt ?? false
-                        ) ? 'checked' : '' }}>
-
-                    <span class="ml-2 text-sm">
-                        Plt pada penandatangan
-                    </span>
-
+                    <input type="hidden" name="penandatangan_plt" value="0">
+                    <input type="checkbox" name="penandatangan_plt" value="1"
+                        {{ old('penandatangan_plt', $suratNodin->penandatangan_plt ?? false) ? 'checked' : '' }}>
+                    <span class="ml-2 text-sm">Plt pada penandatangan</span>
                 </label>
-
-
                 <label class="inline-flex items-center ml-6">
-
-                    <input
-                        type="checkbox"
-                        name="penandatangan_an"
-                        value="1"
-                        {{ old(
-                            'penandatangan_an',
-                            $suratNodin->penandatangan_an ?? false
-                        ) ? 'checked' : '' }}>
-
-                    <span class="ml-2 text-sm">
-                        a.n (Atas Nama)
-                    </span>
-
+                    <input type="checkbox" name="penandatangan_an" value="1"
+                        {{ old('penandatangan_an', $suratNodin->penandatangan_an ?? false) ? 'checked' : '' }}>
+                    <span class="ml-2 text-sm">a.n (Atas Nama)</span>
                 </label>
-
             </div>
-
         </div>
-
 
         <div>
-
-            <label class="form-label">
-                Pilih Pegawai Yang Diberi Tugas
-            </label>
-
-            <select
-                name="pegawai_tugas_id"
-                class="w-full border rounded-lg px-3 py-3">
-
-                <option value="">
-                    -- Pilih Pegawai Tugas --
-                </option>
-
+            <label class="form-label">Pilih Pegawai Yang Diberi Tugas</label>
+            <select name="pegawai_tugas_id"
+                    class="w-full border rounded-lg px-3 py-3 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="">-- Pilih Pegawai Tugas --</option>
                 @foreach($asns as $asn)
-
-                    <option
-                        value="{{ $asn->id }}"
-                        {{ old(
-                            'pegawai_tugas_id',
-                            $suratNodin->pegawai_tugas_id ?? ''
-                        ) == $asn->id
-                        ? 'selected'
-                        : '' }}>
-
-                        {{ $asn->nama }}
-
-                        @if($asn->nip)
-                            ({{ $asn->nip }})
-                        @endif
-
+                    <option value="{{ $asn->id }}"
+                        {{ old('pegawai_tugas_id', $suratNodin->pegawai_tugas_id ?? '') == $asn->id ? 'selected' : '' }}>
+                        {{ $asn->nama }}@if($asn->nip) ({{ $asn->nip }})@endif
                     </option>
-
                 @endforeach
-
             </select>
-
         </div>
-
     </div>
 
 </div>
 
 
 {{-- ========================================================= --}}
-{{-- SELECT2                                                   --}}
+{{-- SELECT2 + JQUERY                                          --}}
 {{-- ========================================================= --}}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 
-<link
-    href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
-    rel="stylesheet">
-
-
-<script
-    src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js">
-</script>
-
-
-<script
-    src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js">
-</script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 
 {{-- ========================================================= --}}
 {{-- JAVASCRIPT                                                --}}
 {{-- ========================================================= --}}
-
 <script>
+(function () {
+    'use strict';
 
-document.addEventListener('DOMContentLoaded', function () {
-
-
-    const pesertaList =
-        document.getElementById('peserta-list');
-
-    const pesertaTemplate =
-        document.getElementById('peserta-template')
-            .firstElementChild;
-
-    const btnTambahPeserta =
-        document.getElementById('tambah-peserta');
-
-
-    // =====================================================
-    // SELECT2 PEGAWAI
-    // =====================================================
-
-    function initPegawai(select) {
-
-        if (
-            typeof $ === 'undefined' ||
-            $(select).hasClass('select2-hidden-accessible')
-        ) {
-            return;
-        }
-
-        $(select).select2({
-
-            placeholder: 'Ketik nama pegawai...',
-
-            allowClear: true,
-
-            width: '100%'
-
+    // =========================================================
+    // TAB SWITCH
+    // =========================================================
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(function (el) {
+            el.classList.add('hidden');
         });
 
-    }
+        var target = document.getElementById('tab-' + tabId);
+        if (target) target.classList.remove('hidden');
 
-
-    // =====================================================
-    // SELECT2 SISWA
-    // =====================================================
-
-    function initSiswa(select) {
-
-        if (
-            typeof $ === 'undefined' ||
-            $(select).hasClass('select2-hidden-accessible')
-        ) {
-            return;
-        }
-
-        $(select).select2({
-
-            placeholder: 'Ketik nama siswa...',
-
-            allowClear: true,
-
-            width: '100%'
-
+        document.querySelectorAll('.tab-btn').forEach(function (btn) {
+            var isActive = btn.dataset.tab === tabId;
+            btn.classList.toggle('is-active', isActive);
+            btn.classList.toggle('bg-blue-600', isActive);
+            btn.classList.toggle('text-white', isActive);
+            btn.classList.toggle('text-gray-600', !isActive);
+            btn.classList.toggle('hover:bg-gray-100', !isActive);
         });
-
     }
 
+    window.switchTab = switchTab; // fallback kalau masih ada onclick lama
 
-    // =====================================================
-    // INISIALISASI AWAL
-    // =====================================================
+    // =========================================================
+    // DOM READY
+    // =========================================================
+    document.addEventListener('DOMContentLoaded', function () {
 
-    pesertaList
-        .querySelectorAll('.pegawai-select2')
-        .forEach(initPegawai);
+        // ---------- Tab nav ----------
+        var tabNav = document.getElementById('tab-nav');
+        if (tabNav) {
+            tabNav.addEventListener('click', function (e) {
+                var btn = e.target.closest('.tab-btn');
+                if (!btn) return;
+                e.preventDefault();
+                switchTab(btn.dataset.tab);
 
-
-    pesertaList
-        .querySelectorAll('.siswa-select2')
-        .forEach(initSiswa);
-
-
-    // =====================================================
-    // NOMOR KARTU
-    // =====================================================
-
-    function updateNomorPeserta() {
-
-        pesertaList
-            .querySelectorAll('.peserta-card')
-            .forEach(function(card, index) {
-
-                const nomor =
-                    card.querySelector('.peserta-number');
-
-                if (nomor) {
-                    nomor.textContent = index + 1;
+                if (btn.dataset.tab === 'peserta') {
+                    // re-init Select2 setelah tab terlihat
+                    setTimeout(initAllSelect2, 60);
                 }
-
             });
+        }
 
-    }
+        // ---------- Elemen utama ----------
+        var pesertaList      = document.getElementById('peserta-list');
+        var pesertaTemplate  = document.getElementById('peserta-template');
+        var btnTambahPeserta = document.getElementById('tambah-peserta');
 
+        if (!pesertaList || !pesertaTemplate || !btnTambahPeserta) {
+            console.warn('[Form] Elemen peserta tidak ditemukan.');
+            return;
+        }
 
-    // =====================================================
-    // TAMBAH PESERTA
-    // =====================================================
+        var templateCard = pesertaTemplate.querySelector('.peserta-card');
 
-    btnTambahPeserta.addEventListener(
-        'click',
-        function () {
+        // ---------- Select2 helpers ----------
+        function safeInitSelect2(select, placeholder) {
+            if (typeof window.jQuery === 'undefined' || !window.jQuery.fn.select2) return;
+            if (!document.body.contains(select)) return;
 
-            const index =
-                pesertaList.querySelectorAll(
-                    '.peserta-card'
-                ).length;
+            var $el = window.jQuery(select);
+            if ($el.hasClass('select2-hidden-accessible')) return;
 
+            $el.select2({
+                placeholder: placeholder,
+                allowClear: true,
+                width: '100%',
+                minimumResultsForSearch: 0
+            });
+        }
 
-            const clone =
-                pesertaTemplate.cloneNode(true);
+        function initAllSelect2() {
+            if (typeof window.jQuery === 'undefined' || !window.jQuery.fn.select2) return;
 
+            pesertaList.querySelectorAll('.pegawai-select2').forEach(function (el) {
+                safeInitSelect2(el, 'Ketik nama pegawai...');
+            });
+            pesertaList.querySelectorAll('.siswa-select2').forEach(function (el) {
+                safeInitSelect2(el, 'Ketik nama siswa...');
+            });
+            pesertaList.querySelectorAll('.dudika-select2').forEach(function (el) {
+                safeInitSelect2(el, 'Ketik nama DUDIKA...');
+            });
+        }
 
-            // ---------------------------------------------
-            // Ganti __INDEX__
-            // ---------------------------------------------
+        // Tunggu jQuery + Select2 siap baru init
+        (function waitForJQuery(tries) {
+            tries = tries || 0;
+            if (typeof window.jQuery !== 'undefined' && window.jQuery.fn && window.jQuery.fn.select2) {
+                initAllSelect2();
+            } else if (tries < 50) {
+                setTimeout(function () { waitForJQuery(tries + 1); }, 100);
+            } else {
+                console.error('[Form] jQuery/Select2 gagal dimuat.');
+            }
+        })();
 
-            clone.innerHTML =
-                clone.innerHTML.replace(
-                    /__INDEX__/g,
-                    index
-                );
+        // ---------- Update nomor peserta ----------
+        function updateNomorPeserta() {
+            pesertaList.querySelectorAll('.peserta-card').forEach(function (card, index) {
+                var nomor = card.querySelector('.peserta-number');
+                if (nomor) nomor.textContent = index + 1;
+            });
+        }
 
+        // ---------- TAMBAH PESERTA ----------
+        btnTambahPeserta.addEventListener('click', function () {
+            var index = pesertaList.querySelectorAll('.peserta-card').length;
 
-            // ---------------------------------------------
-            // Reset nomor
-            // ---------------------------------------------
+            var clone = templateCard.cloneNode(true);
+            clone.innerHTML = clone.innerHTML.replace(/__INDEX__/g, index);
 
-            clone
-                .querySelector('.peserta-number')
-                .textContent = index + 1;
-
-
-            // ---------------------------------------------
-            // Masukkan kartu
-            // ---------------------------------------------
+            var nomor = clone.querySelector('.peserta-number');
+            if (nomor) nomor.textContent = index + 1;
 
             pesertaList.appendChild(clone);
 
-
-            // ---------------------------------------------
-            // Aktifkan Select2
-            // ---------------------------------------------
-
-            clone
-                .querySelectorAll('.pegawai-select2')
-                .forEach(initPegawai);
-
-
-            clone
-                .querySelectorAll('.siswa-select2')
-                .forEach(initSiswa);
-
+            clone.querySelectorAll('.pegawai-select2').forEach(function (el) {
+                safeInitSelect2(el, 'Ketik nama pegawai...');
+            });
+            clone.querySelectorAll('.siswa-select2').forEach(function (el) {
+                safeInitSelect2(el, 'Ketik nama siswa...');
+            });
+            clone.querySelectorAll('.dudika-select2').forEach(function (el) {
+                safeInitSelect2(el, 'Ketik nama DUDIKA...');
+            });
 
             updateNomorPeserta();
+        });
 
-        }
-    );
+        // ---------- EVENT DELEGATION ----------
+        pesertaList.addEventListener('click', function (e) {
 
-
-    // =====================================================
-    // EVENT DELEGATION
-    // =====================================================
-
-    pesertaList.addEventListener(
-        'click',
-        function (event) {
-
-
-            // =============================================
             // HAPUS PESERTA
-            // =============================================
-
-            const btnHapusPeserta =
-                event.target.closest('.hapus-peserta');
-
-
+            var btnHapusPeserta = e.target.closest('.hapus-peserta');
             if (btnHapusPeserta) {
+                var card = btnHapusPeserta.closest('.peserta-card');
+                if (!card) return;
 
-                const card =
-                    btnHapusPeserta.closest(
-                        '.peserta-card'
-                    );
-
-
-                if (card) {
-
-                    card
-                        .querySelectorAll(
-                            '.pegawai-select2, .siswa-select2'
-                        )
-                        .forEach(function(select) {
-
-                            if (
-                                typeof $ !== 'undefined' &&
-                                $(select).hasClass(
-                                    'select2-hidden-accessible'
-                                )
-                            ) {
-
-                                $(select).select2(
-                                    'destroy'
-                                );
-
-                            }
-
-                        });
-
-
-                    card.remove();
-
-                    updateNomorPeserta();
-
+                if (window.jQuery && window.jQuery.fn.select2) {
+                    card.querySelectorAll('select').forEach(function (sel) {
+                        if (window.jQuery(sel).hasClass('select2-hidden-accessible')) {
+                            window.jQuery(sel).select2('destroy');
+                        }
+                    });
                 }
-
+                card.remove();
+                updateNomorPeserta();
                 return;
             }
 
-
-            // =============================================
             // TAMBAH TEMPAT
-            // =============================================
-
-            const btnTambahTempat =
-                event.target.closest('.tambah-tempat');
-
-
+            var btnTambahTempat = e.target.closest('.tambah-tempat');
             if (btnTambahTempat) {
+                var card2 = btnTambahTempat.closest('.peserta-card');
+                var tempatList = card2.querySelector('.tempat-kegiatan-list');
+                var templateItem = tempatList.querySelector('.tempat-item');
+                if (!templateItem) return;
 
-                const card =
-                    btnTambahTempat.closest(
-                        '.peserta-card'
-                    );
-
-
-                const tempatList =
-                    card.querySelector(
-                        '.tempat-kegiatan-list'
-                    );
-
-
-                const template =
-                    tempatList.querySelector(
-                        '.tempat-item'
-                    );
-
-
-                const item =
-                    template.cloneNode(true);
-
-
-                const textarea =
-                    item.querySelector('textarea');
-
-
-                if (textarea) {
-
-                    textarea.value = '';
-
+                var item = templateItem.cloneNode(true);
+                var input = item.querySelector('input[type="text"]');
+                if (input) {
+                    input.value = '';
+                    input.setAttribute('type', 'text');
                 }
-
-
-                // Ambil name dari item pertama
-                const textareaPertama =
-                    template.querySelector('textarea');
-
-
-                if (
-                    textarea &&
-                    textareaPertama
-                ) {
-
-                    textarea.name =
-                        textareaPertama.name;
-
-                }
-
-
                 tempatList.appendChild(item);
-
-
-                textarea.focus();
-
+                if (input) input.focus();
                 return;
             }
 
-
-            // =============================================
             // HAPUS TEMPAT
-            // =============================================
-
-            const btnHapusTempat =
-                event.target.closest('.hapus-tempat');
-
-
+            var btnHapusTempat = e.target.closest('.hapus-tempat');
             if (btnHapusTempat) {
-
-                const item =
-                    btnHapusTempat.closest(
-                        '.tempat-item'
-                    );
-
-
-                const tempatList =
-                    item.closest(
-                        '.tempat-kegiatan-list'
-                    );
-
-
-                const jumlah =
-                    tempatList.querySelectorAll(
-                        '.tempat-item'
-                    ).length;
-
+                var item2 = btnHapusTempat.closest('.tempat-item');
+                var tempatList2 = item2.closest('.tempat-kegiatan-list');
+                var jumlah = tempatList2.querySelectorAll('.tempat-item').length;
 
                 if (jumlah > 1) {
-
-                    item.remove();
-
+                    item2.remove();
                 } else {
-
-                    const textarea =
-                        item.querySelector('textarea');
-
-                    if (textarea) {
-                        textarea.value = '';
-                    }
-
+                    var inputField = item2.querySelector('input[type="text"]');
+                    if (inputField) inputField.value = '';
                 }
-
             }
+        });
 
-        }
-    );
+        // ---------- AUTO KOP SURAT ----------
+        var selectDari = document.getElementById('select-dari');
+        var selectKop  = document.getElementById('select-kop');
 
-
-    // =====================================================
-    // AUTO KOP SURAT
-    // =====================================================
-
-    const selectDari =
-        document.getElementById('select-dari');
-
-    const selectKop =
-        document.getElementById('select-kop');
-
-
-    if (selectDari && selectKop) {
-
-        selectDari.addEventListener(
-            'change',
-            function () {
-
-                if (
-                    this.value ===
-                    'Kepala SMK Negeri 1 Koba'
-                ) {
-
-                    selectKop.value =
-                        'kop_smk';
-
-                }
-                else if (
-                    this.value ===
-                    'Kepala Dinas Pendidikan Provinsi Kepulauan Bangka Belitung'
-                ) {
-
-                    selectKop.value =
-                        'kop_dinas';
-
-                }
-                else {
-
+        if (selectDari && selectKop) {
+            selectDari.addEventListener('change', function () {
+                if (this.value === 'Kepala SMK Negeri 1 Koba') {
+                    selectKop.value = 'kop_smk';
+                } else if (this.value === 'Kepala Dinas Pendidikan Provinsi Kepulauan Bangka Belitung') {
+                    selectKop.value = 'kop_dinas';
+                } else {
                     selectKop.value = '';
-
                 }
-
-            }
-        );
-
-    }
-
-});
-
-
-// =========================================================
-// TAB
-// =========================================================
-
-function switchTab(tabId) {
-
-    const contents =
-        document.querySelectorAll('.tab-content');
-
-
-    contents.forEach(function(el) {
-
-        el.classList.add('hidden');
-
-    });
-
-
-    const target =
-        document.getElementById(
-            'tab-' + tabId
-        );
-
-
-    if (target) {
-
-        target.classList.remove('hidden');
-
-    }
-
-
-    const buttons =
-        document.querySelectorAll('.tab-btn');
-
-
-    buttons.forEach(function(btn) {
-
-        if (
-            btn.dataset.tab === tabId
-        ) {
-
-            btn.classList.remove(
-                'text-gray-600',
-                'hover:bg-gray-100'
-            );
-
-            btn.classList.add(
-                'bg-blue-600',
-                'text-white'
-            );
-
-        }
-        else {
-
-            btn.classList.remove(
-                'bg-blue-600',
-                'text-white'
-            );
-
-            btn.classList.add(
-                'text-gray-600',
-                'hover:bg-gray-100'
-            );
-
+            });
         }
 
-    });
+    }); // end DOMContentLoaded
 
-}
-
+})();
 </script>

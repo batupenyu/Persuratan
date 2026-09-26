@@ -10,33 +10,30 @@ use Tests\TestCase;
 
 class SuratNodinDudikaTest extends TestCase
 {
-    private ?Asn $testAsn = null;
-    private ?DaftarDudika $testDudika = null;
-    private ?SuratNodin $createdSurat = null;
+    private $testAsn = null;
+    private $dudikas = null;
+    private $createdSuratId = null;
 
-    protected function setUp(): void
+    public function setUp(): void
     {
         parent::setUp();
 
         // phpunit.xml forces an empty :memory: SQLite DB. This project's
         // migrations cannot run fresh (pre-existing ordering issue on
-        // surat_tugas). Point the test at the existing file database
-        // which already contains all tables (incl. daftar_dudika + column).
+        // surat_tugas). Use the existing file database which already
+        // contains all tables (incl. daftar_dudika + dudika_id column).
         config(['database.default' => 'sqlite']);
         config(['database.connections.sqlite.database' => database_path('database.sqlite')]);
     }
 
     protected function tearDown(): void
     {
-        if ($this->createdSurat) {
-            $this->createdSurat->pesertaSuratUsulans()->delete();
-            $this->createdSurat->delete();
-            $this->createdSurat = null;
-        }
-
-        if ($this->testDudika) {
-            $this->testDudika->delete();
-            $this->testDudika = null;
+        if ($this->createdSuratId) {
+            PesertaSuratUsulan::where('surat_nodin_id', $this->createdSuratId)->delete();
+            if ($surat = SuratNodin::find($this->createdSuratId)) {
+                $surat->delete();
+            }
+            $this->createdSuratId = null;
         }
 
         if ($this->testAsn) {
@@ -47,7 +44,7 @@ class SuratNodinDudikaTest extends TestCase
         parent::tearDown();
     }
 
-    private function validBasePayload(array $peserta): array
+    private function basePayload(array $peserta): array
     {
         return [
             'dari' => 'Kepala Dinas Pendidikan Provinsi Kepulauan Bangka Belitung',
@@ -60,22 +57,31 @@ class SuratNodinDudikaTest extends TestCase
         ];
     }
 
-    public function test_selected_dudika_is_stored_and_appears_on_tempat_kegiatan(): void
+    private function resolveDudikas(): array
+    {
+        // Reuse existing DUDIKA rows (already seeded) to avoid FK/unique issues.
+        if ($this->dudikas === null) {
+            $this->dudikas = DaftarDudika::orderBy('id')->take(3)->get()->keyBy('nama_dudika');
+        }
+        return $this->dudikas;
+    }
+
+    public function test_single_dudika_is_stored_and_appears_on_print(): void
     {
         $this->testAsn = Asn::create([
-            'nama' => 'Pegawai Dudika Test',
+            'nama' => 'Pegawai Dudika Single',
             'jk' => 'L',
-            'nip' => 'DUDIKA-9001',
+            'nip' => 'DUD-SINGLE',
         ]);
 
-        $this->testDudika = DaftarDudika::create([
-            'nama_dudika' => 'BENGKEL AHASS HONDA KOBA (TEST)',
-        ]);
+        $d = $this->resolveDudikas();
+        $keys = array_keys($d);
+        $dudika1 = $d[$keys[0]];
 
-        $response = $this->post(route('surat-nodins.store'), $this->validBasePayload([
+        $response = $this->post(route('surat-nodins.store'), $this->basePayload([
             [
                 'pegawai_id' => [$this->testAsn->id],
-                'dudika_id' => $this->testDudika->id,
+                'dudika_id' => [$dudika1->id],
                 'tgl_awal_kegiatan' => '2026-09-26',
                 'tgl_akhir_kegiatan' => '2026-09-26',
             ],
@@ -84,36 +90,75 @@ class SuratNodinDudikaTest extends TestCase
         $response->assertRedirect();
 
         $surat = SuratNodin::orderByDesc('id')->first();
-        $this->createdSurat = $surat;
-        $this->assertNotNull($surat);
+        $this->createdSuratId = $surat->id;
 
         $peserta = PesertaSuratUsulan::where('surat_nodin_id', $surat->id)->first();
-        $this->assertNotNull($peserta, 'Peserta tidak tersimpan.');
-        $this->assertEquals($this->testDudika->id, $peserta->dudika_id);
-        $this->assertEquals('BENGKEL AHASS HONDA KOBA (TEST)', $peserta->tempat_kegiatan);
+        $this->assertNotNull($peserta);
+        $this->assertEquals($dudika1->id, $peserta->dudika_id);
+        $this->assertEquals($dudika1->nama_dudika, $peserta->tempat_kegiatan);
 
         $print = $this->get(route('surat-nodins.print', $surat));
         $print->assertStatus(200);
-        $print->assertSee('BENGKEL AHASS HONDA KOBA (TEST)');
+        $print->assertSee($dudika1->nama_dudika);
         $print->assertSee('Tempat Kegiatan');
     }
 
-    public function test_no_dudika_leaves_tempat_kegiatan_as_typed_value(): void
+    public function test_multiple_dudika_each_becomes_tempat_kegiatan(): void
     {
         $this->testAsn = Asn::create([
-            'nama' => 'Pegawai Dudika Test 2',
-            'jk' => 'P',
-            'nip' => 'DUDIKA-9002',
+            'nama' => 'Pegawai Dudika Multi',
+            'jk' => 'L',
+            'nip' => 'DUD-MULTI',
         ]);
 
-        $this->testDudika = DaftarDudika::create([
-            'nama_dudika' => 'BENGKEL AHASS HONDA KOBA (TEST)',
-        ]);
+        $d = $this->resolveDudikas();
+        $keys = array_keys($d);
+        $dudika1 = $d[$keys[0]];
+        $dudika2 = $d[$keys[1]];
 
-        $response = $this->post(route('surat-nodins.store'), $this->validBasePayload([
+        $response = $this->post(route('surat-nodins.store'), $this->basePayload([
             [
                 'pegawai_id' => [$this->testAsn->id],
-                'dudika_id' => null,
+                'dudika_id' => [$dudika1->id, $dudika2->id],
+                'tgl_awal_kegiatan' => '2026-09-26',
+                'tgl_akhir_kegiatan' => '2026-09-26',
+            ],
+        ]));
+
+        $response->assertRedirect();
+
+        $surat = SuratNodin::orderByDesc('id')->first();
+        $this->createdSuratId = $surat->id;
+
+        $pesertas = PesertaSuratUsulan::where('surat_nodin_id', $surat->id)->get();
+        $this->assertCount(2, $pesertas, 'Harus ada 2 rekamat (satu per DUDIKA).');
+
+        $tempats = $pesertas->pluck('tempat_kegiatan')->toArray();
+        $this->assertContains($dudika1->nama_dudika, $tempats);
+        $this->assertContains($dudika2->nama_dudika, $tempats);
+
+        $dudikaIds = $pesertas->pluck('dudika_id')->toArray();
+        $this->assertContains($dudika1->id, $dudikaIds);
+        $this->assertContains($dudika2->id, $dudikaIds);
+
+        $print = $this->get(route('surat-nodins.print', $surat));
+        $print->assertStatus(200);
+        $print->assertSee($dudika1->nama_dudika);
+        $print->assertSee($dudika2->nama_dudika);
+    }
+
+    public function test_no_dudika_keeps_typed_tempat(): void
+    {
+        $this->testAsn = Asn::create([
+            'nama' => 'Pegawai Dudika None',
+            'jk' => 'P',
+            'nip' => 'DUD-NONE',
+        ]);
+
+        $response = $this->post(route('surat-nodins.store'), $this->basePayload([
+            [
+                'pegawai_id' => [$this->testAsn->id],
+                'dudika_id' => [],
                 'tempat_kegiatan' => ['Lokasi Langsung'],
                 'tgl_awal_kegiatan' => '2026-09-26',
                 'tgl_akhir_kegiatan' => '2026-09-26',
@@ -123,8 +168,7 @@ class SuratNodinDudikaTest extends TestCase
         $response->assertRedirect();
 
         $surat = SuratNodin::orderByDesc('id')->first();
-        $this->createdSurat = $surat;
-        $this->assertNotNull($surat);
+        $this->createdSuratId = $surat->id;
 
         $peserta = PesertaSuratUsulan::where('surat_nodin_id', $surat->id)->first();
         $this->assertNull($peserta->dudika_id);
