@@ -225,11 +225,13 @@
         }
         .ttd-nama {
             font-weight: bold;
-            text-decoration: underline;
+            /* text-decoration: underline; */
             margin: 0;
+            padding-left: 40px;
         }
         .ttd-nip {
             margin: 0;
+            padding-left: 40px;
         }
         @media print {
             body { background: white; }
@@ -492,10 +494,14 @@
                     Dikeluarkan di : Pangkalpinang<br>
                     Pada Tanggal : {{ $fmt($drh->tgl_ditetapkan, '%d %B %Y') }}
                 </div>
-                <div class="ttd-jabatan">
+                {{-- <div class="ttd-jabatan">
                     Plt. KEPALA DINAS PENDIDIKAN<br>
                     PROVINSI KEP. BANGKA BELITUNG
-                </div>
+                </div> --}}
+
+                <div style="padding-left: 0;">Plt.  &nbsp;KEPALA DINAS PENDIDIKAN</div>
+                <div style="padding-left: 40px;">PROVINSI KEP. BANGKA BELITUNG</div>
+
                 <div class="ttd-spasi"></div>
                 <div class="ttd-nama">
                     @php
@@ -509,7 +515,7 @@
                     @endphp
                     {{ $nama }}
                 </div>
-                <div class="ttd-nip">NIP. {{ $drh->atasan_nip ?: '19740430 200501 1 013' }}</div>
+                <div class="ttd-nip">NIP.{{ $drh->atasan_nip ?: '19740430 200501 1 013' }}</div>
             </div>
         </div>
     </div>
