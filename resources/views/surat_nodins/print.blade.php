@@ -640,7 +640,7 @@
 
     @if($suratNodin->isi_surat)
     <div class="isi-surat">
-        Demikian surat permohonan ini kami sampaikan atas perhatian Bapak, Kami ucapkan terima kasih.
+        Demikian surat permohonan ini kami sampaikan atas perhatian dan persetujuan Bapak, Kami ucapkan terima kasih.
     </div>
     @endif
 
