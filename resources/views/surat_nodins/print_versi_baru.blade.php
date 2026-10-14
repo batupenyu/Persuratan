@@ -29,7 +29,7 @@
             width: 210mm;
             min-height: 297mm;
             margin: 10mm auto;
-            padding: 12mm 15mm 22mm 15mm;
+            padding: 12mm 20mm 22mm 25mm;
             background: #fff;
             box-shadow: 0 0 8px rgba(0, 0, 0, 0.20);
             overflow: hidden;
@@ -575,7 +575,7 @@
 
     @if($suratNodin->isi_surat)
     <div class="isi-surat">
-        Demikian surat permohonan ini kami sampaikan atas perhatian dan persetujuan Bapak, Kami ucapkan terima kasih.
+        Demikian disampaikan, mohon perkenan memberikan persetujuan untuk dapat mengikuti kegiatan tersebut, terima kasih.
     </div>
     @endif
 
