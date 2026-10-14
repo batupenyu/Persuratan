@@ -34,7 +34,12 @@
                                 <!-- <td class="px-4 py-2">{{ $suratNodin->tanggal ? \Carbon\Carbon::parse($suratNodin->tanggal)->format('d-m-Y') : '-' }}</td> -->
                                 <td class="px-4 py-2">
                                         <div class="flex items-center gap-3">
-                                            <a href="{{ route('surat-nodins.print', $suratNodin) }}" class="text-blue-600 hover:text-blue-800" title="Cetak" aria-label="Cetak">
+                                            <a href="{{ route('surat-nodins.print', $suratNodin) }}" target="_blank" class="text-blue-600 hover:text-blue-800" title="Cetak - Versi Sekarang (Tabel)" aria-label="Cetak Versi Sekarang">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"/>
+                                                </svg>
+                                            </a>
+                                            <a href="{{ route('surat-nodins.print-baru', $suratNodin) }}" target="_blank" class="text-purple-600 hover:text-purple-800" title="Cetak - Versi Baru (Baris Tanpa Tabel)" aria-label="Cetak Versi Baru">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"/>
                                                 </svg>

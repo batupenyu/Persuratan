@@ -204,6 +204,44 @@ class SuratNodinController extends Controller
     }
 
     /**
+     * Tampilan cetak Surat Nodin - Versi Baru (format baris, tanpa tabel)
+     */
+    public function printBaru(SuratNodin $suratNodin): View
+    {
+        $suratNodin->load(
+            'penandatangan',
+            'pegawaiTugas',
+            'pesertaSuratUsulans.pegawai',
+            'pesertaSuratUsulans.siswa',
+            'pesertaSuratUsulans.dudika'
+        );
+
+        $kopSuratBase64 = null;
+
+        $logoName = $suratNodin->kop_surat ?: 'kop_smk';
+
+        $logo = LogoSetting::where('name', $logoName)->first()
+            ?? LogoSetting::latest()->first();
+
+        if ($logo && $logo->image) {
+            $kopSuratBase64 =
+                'data:' .
+                ($logo->mime ?: 'image/png') .
+                ';base64,' .
+                base64_encode($logo->image);
+        }
+
+        return view(
+            'surat_nodins.print_versi_baru',
+            compact(
+                'suratNodin',
+                'kopSuratBase64'
+            )
+        );
+    }
+
+
+    /**
      * Lampiran Surat Nodin.
      */
     public function lampiran(SuratNodin $suratNodin): View

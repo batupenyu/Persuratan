@@ -208,3 +208,5 @@ Route::resource('surat-bersedias', SuratBersediaController::class)
     ->only(['index', 'create', 'store', 'edit', 'update']);
 Route::delete('surat-bersedias/{surat_bersedia}', [SuratBersediaController::class, 'destroy'])->name('surat-bersedias.destroy');
 Route::get('surat-bersedias/{surat_bersedia}/print', [SuratBersediaController::class, 'print'])->name('surat-bersedias.print');
+
+    Route::get('surat-nodins/{suratNodin}/print-baru', [SuratNodinController::class, 'printBaru'])->name('surat-nodins.print-baru');
