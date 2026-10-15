@@ -162,7 +162,7 @@
       <tr>
         <td class="label">Jabatan</td>
         <td class="colon">:</td>
-        <td>{{ $suratSantunan->penandatangan->jabatan ?? '' }}</td>
+        <td>{{ $suratSantunan->penandatangan->jabatan ?? '' }} {{ $suratSantunan->penandatangan->unit_kerja ?? '' }}</td>
       </tr>
     </table>
     <div class="content-block">
@@ -204,7 +204,7 @@
       <tr>
         <td class="label">Unit Kerja</td>
         <td class="colon">:</td>
-        <td>{{ $suratSantunan->pegawai->lembaga_pengangkatan ?? '' }}</td>
+        <td>{{ $suratSantunan->pegawai->unit_kerja ?? '' }}</td>
       </tr>
       <tr>
         <td class="label">Nomor HP</td>
